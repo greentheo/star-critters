@@ -891,11 +891,81 @@ func _show_settings() -> void:
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		if o[2]:
 			_selected_style(b)
-		v.add_child(b)
+		if o[0] == "pulse":
+			v.add_child(b)
+			continue
+		# Music and effects: the on/off switch with a volume slider beside it.
+		b.custom_minimum_size = Vector2(420, 86)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 24)
+		row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		row.add_child(b)
+		var vol: float = sound.music_volume if o[0] == "music" else sound.sfx_volume
+		var pct := _label("%d%%" % roundi(vol * 100.0), 30, SOFT)
+		pct.custom_minimum_size = Vector2(90, 0)
+		pct.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var sl := _volume_slider(vol, o[2])
+		sl.value_changed.connect(_volume_changed.bind(o[0], pct))
+		row.add_child(sl)
+		row.add_child(pct)
+		v.add_child(row)
 	var close := _green(_button("Done", _close_overlay, 36))
 	close.custom_minimum_size = Vector2(300, 90)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(close)
+
+
+## A big, easy-to-grab volume slider (0 to 100%).
+func _volume_slider(value: float, on: bool) -> HSlider:
+	var sl := HSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.05
+	sl.value = value
+	sl.editable = on
+	sl.custom_minimum_size = Vector2(380, 86)
+	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sl.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var track := _box(Color("1d3a44"), 10, 0)
+	track.content_margin_top = 7
+	track.content_margin_bottom = 7
+	sl.add_theme_stylebox_override("slider", track)
+	var fill := _box(Color("3fd0b0") if on else Color("3c5a60"), 10, 0)
+	fill.content_margin_top = 7
+	fill.content_margin_bottom = 7
+	sl.add_theme_stylebox_override("grabber_area", fill)
+	sl.add_theme_stylebox_override("grabber_area_highlight", fill)
+	var knob := _knob_texture(Color("e8fff8") if on else Color("6c8a8e"))
+	sl.add_theme_icon_override("grabber", knob)
+	sl.add_theme_icon_override("grabber_highlight", _knob_texture(Color("ffffff")) if on else knob)
+	sl.add_theme_icon_override("grabber_disabled", knob)
+	return sl
+
+
+func _knob_texture(col: Color) -> ImageTexture:
+	var n := 40
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var c := (n - 1) / 2.0
+	for y in n:
+		for x in n:
+			var d := Vector2(x - c, y - c).length()
+			img.set_pixel(x, y, Color(col, clampf(c - d + 0.5, 0.0, 1.0)))
+	return ImageTexture.create_from_image(img)
+
+
+var _vol_preview_t := 0.0
+
+func _volume_changed(value: float, which: String, pct: Label) -> void:
+	pct.text = "%d%%" % roundi(value * 100.0)
+	if which == "music":
+		sound.set_music_volume(value)
+	else:
+		sound.set_sfx_volume(value)
+		# let them hear the new level, without a burst of clicks while dragging
+		var now := Time.get_ticks_msec() / 1000.0
+		if now - _vol_preview_t > 0.3:
+			_vol_preview_t = now
+			sound.play("select")
 
 
 func _toggle_setting(which: String) -> void:

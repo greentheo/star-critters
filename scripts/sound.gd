@@ -9,7 +9,7 @@ const SFX := ["click", "popup", "invalid", "turn", "news", "rush", "done", "tick
 	"lose", "capture", "defend", "runaway", "ask", "friends", "nothanks", "friendend", "card", "rocket",
 	"luckydice", "shield", "mystery", "meteor", "comet", "bloom", "glow", "gloomgrow", "gloomtake",
 	"gloomchase", "storm", "win", "loseall", "out", "bounce"]
-const MUSIC_VOL := 0.55   # mood lab levels
+const MUSIC_VOL := 0.55   # mood lab levels (the 100% marks on the Settings sliders)
 const SFX_VOL := 0.53
 const SETTINGS := "user://settings.cfg"
 const FADE_IN := 2.0     # seconds for the music to rise when it starts
@@ -17,6 +17,9 @@ const FADE_IN := 2.0     # seconds for the music to rise when it starts
 var music_on := true
 var sfx_on := true
 var pulse_on := true
+var music_volume := 1.0   # Settings sliders, 0..1
+var sfx_volume := 0.75    # effects sit a little under the music
+var _save_in := -1.0      # slider drags save once they settle
 var streams := {}
 var _pool: Array = []
 var _next := 0
@@ -94,7 +97,7 @@ func _start() -> void:
 func _apply() -> void:
 	AudioServer.set_bus_mute(_music_bus, not music_on)
 	AudioServer.set_bus_mute(_sfx_bus, not sfx_on)
-	AudioServer.set_bus_volume_db(_sfx_bus, linear_to_db(SFX_VOL))
+	AudioServer.set_bus_volume_db(_sfx_bus, linear_to_db(maxf(SFX_VOL * sfx_volume, 0.0001)))
 	if music_on and _started and not _drone.playing:
 		_fade = 0.0
 		_drone.play()
@@ -114,6 +117,17 @@ func set_sfx(on: bool) -> void:
 	_save_settings()
 
 
+func set_music_volume(v: float) -> void:
+	music_volume = clampf(v, 0.0, 1.0)
+	_save_in = 0.6
+
+
+func set_sfx_volume(v: float) -> void:
+	sfx_volume = clampf(v, 0.0, 1.0)
+	_apply()
+	_save_in = 0.6
+
+
 func set_pulse_on(on: bool) -> void:
 	pulse_on = on
 	_save_settings()
@@ -125,6 +139,8 @@ func _load_settings() -> void:
 		music_on = cf.get_value("sound", "music", true)
 		sfx_on = cf.get_value("sound", "effects", true)
 		pulse_on = cf.get_value("look", "pulse", true)
+		music_volume = cf.get_value("sound", "music_volume", music_volume)
+		sfx_volume = cf.get_value("sound", "effects_volume", sfx_volume)
 
 
 func _save_settings() -> void:
@@ -132,6 +148,8 @@ func _save_settings() -> void:
 	cf.set_value("sound", "music", music_on)
 	cf.set_value("sound", "effects", sfx_on)
 	cf.set_value("look", "pulse", pulse_on)
+	cf.set_value("sound", "music_volume", music_volume)
+	cf.set_value("sound", "effects_volume", sfx_volume)
 	cf.save(SETTINGS)
 
 
@@ -181,6 +199,10 @@ func reset_streak() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	if _save_in > 0.0:
+		_save_in -= delta
+		if _save_in <= 0.0:
+			_save_settings()
 	if not music_on or not _started:
 		return
 	_fade = minf(1.0, _fade + delta / FADE_IN)
@@ -210,5 +232,5 @@ func set_pulse(p: float, depth: float) -> void:
 	if _lowpass:  # (bus effects only run on desktop; the web plays sounds as samples)
 		_lowpass.cutoff_hz = 650.0 + 900.0 * p if on else 1000.0
 	var g := 1.0 - minf(0.5, depth * 5.0) * (1.0 - p) if on else 1.0
-	g *= smoothstep(0.0, 1.0, _fade)
+	g *= smoothstep(0.0, 1.0, _fade) * music_volume
 	AudioServer.set_bus_volume_db(_music_bus, linear_to_db(maxf(MUSIC_VOL * g, 0.0001)))
