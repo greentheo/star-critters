@@ -226,10 +226,13 @@ def save(name, st, master=0.9):
     os.remove(tmp)
 
 
+SFX_GAIN = 1.8   # about 6 dB louder than the lab's raw levels: easy to hear on laptop speakers
+
+
 def sfx(name, sec, build, send=0.4):
     b = Buf(sec)
     build(b)
-    save(name, trim(with_reverb(b.x, send)))
+    save(name, trim(with_reverb(b.x, send)), master=0.9 * SFX_GAIN)
 
 
 # ------------------------------------------------------------------ sound effects
@@ -384,21 +387,24 @@ def make_music():
     n = int(SR * L)
     t = np.arange(n) / SR
     dr = np.zeros(n)
+    # laptop speakers can't play 55 Hz, so each tone also gets soft overtones: the ear still
+    # hears the deep note ("missing fundamental"), and small speakers can actually play it
     for s in (-24, -17):
         for det in (-4, 4):
-            f = round(hz(s) * 2 ** (det / 1200) * L) / L
-            dr += np.sin(2 * np.pi * f * t) * 0.06
-    save("drone", loop_reverb(dr, 0.7), master=0.9)
+            for mult, amp in ((1, 0.06), (2, 0.04), (3, 0.022), (4, 0.012)):
+                f = round(hz(s) * mult * 2 ** (det / 1200) * L) / L
+                dr += np.sin(2 * np.pi * f * t) * amp
+    save("drone", loop_reverb(dr, 0.7), master=1.3)
     # starry wind: band-passed noise that swells for about 13 s
     for v in range(4):
         b = Buf(14)
         b.add(noise(9, "bandpass", rng.uniform(300, 500), rng.uniform(900, 1400), 3, 0.035, 4))
-        save(f"wind_{v}", trim(with_reverb(b.x, 0.7)))
+        save(f"wind_{v}", trim(with_reverb(b.x, 0.7)), master=1.6)
     # rare low bells in A minor pentatonic
     for i in range(3, 9):
         b = Buf(6.5)
         b.add(bell(hz(pent(i, MINP)), 0.08, 6))
-        save(f"mbell_{i}", trim(with_reverb(b.x, 0.7)))
+        save(f"mbell_{i}", trim(with_reverb(b.x, 0.7)), master=1.6)
 
 
 if __name__ == "__main__":

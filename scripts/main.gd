@@ -261,6 +261,19 @@ func _test_friends() -> void:
 				return
 
 
+func _test_audio() -> void:
+	## Prints what the audio system is doing (for checking sound in the web build).
+	sound.play("turn")
+	var best := {}
+	for i in 60:
+		await get_tree().process_frame
+		for b in AudioServer.bus_count:
+			var n := AudioServer.get_bus_name(b)
+			best[n] = maxf(best.get(n, -200.0), AudioServer.get_bus_peak_volume_left_db(b, 0))
+	print("AUDIO driver=%s mix=%d buses=%d music_on=%s sfx_on=%s drone=%s peaks=%s" % [AudioServer.get_driver_name(),
+		AudioServer.get_mix_rate(), AudioServer.bus_count, sound.music_on, sound.sfx_on, sound._drone.playing, best])
+
+
 func _test_fast_forward(rounds: int) -> void:
 	## Let the AI play every seat (instantly) until `rounds` more rounds have passed.
 	var stop_round: int = s["round"] + rounds

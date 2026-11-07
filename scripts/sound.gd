@@ -34,11 +34,12 @@ var _clock := 0.0
 
 func _ready() -> void:
 	_load_settings()
-	_music_bus = _bus("Music")
-	_sfx_bus = _bus("SFX")
-	_lowpass = AudioEffectLowPassFilter.new()
-	_lowpass.cutoff_hz = 1000.0
-	AudioServer.add_bus_effect(_music_bus, _lowpass)
+	# the Music and SFX buses come from default_bus_layout.tres, so they exist from the start.
+	# (Buses added from code at runtime are not wired to the speakers on the web.)
+	_music_bus = AudioServer.get_bus_index("Music")
+	_sfx_bus = AudioServer.get_bus_index("SFX")
+	if AudioServer.get_bus_effect_count(_music_bus) > 0:
+		_lowpass = AudioServer.get_bus_effect(_music_bus, 0) as AudioEffectLowPassFilter
 	for n in SFX:
 		streams[n] = load("res://assets/audio/%s.ogg" % n)
 	for i in range(4, 15):
@@ -64,16 +65,6 @@ func _ready() -> void:
 	_drone.bus = "Music"
 	add_child(_drone)
 	_apply()
-
-
-func _bus(name: String) -> int:
-	var i := AudioServer.get_bus_index(name)
-	if i < 0:
-		AudioServer.add_bus()
-		i = AudioServer.bus_count - 1
-		AudioServer.set_bus_name(i, name)
-		AudioServer.set_bus_send(i, "Master")
-	return i
 
 
 func _apply() -> void:
@@ -187,9 +178,10 @@ func _music(name: String) -> void:
 
 ## The pulse: the music gets a little brighter and louder on each in-breath.
 func set_pulse(p: float, depth: float) -> void:
-	if _lowpass == null:
+	if _music_bus < 0:
 		return
 	var on := pulse_on and depth > 0.0
-	_lowpass.cutoff_hz = 650.0 + 900.0 * p if on else 1000.0
+	if _lowpass:  # (bus effects only run on desktop; the web plays sounds as samples)
+		_lowpass.cutoff_hz = 650.0 + 900.0 * p if on else 1000.0
 	var g := 1.0 - minf(0.5, depth * 5.0) * (1.0 - p) if on else 1.0
 	AudioServer.set_bus_volume_db(_music_bus, linear_to_db(MUSIC_VOL * g))
