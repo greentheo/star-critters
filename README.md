@@ -28,6 +28,9 @@ python3 -m http.server 8799 --directory docs                     # then open htt
 | `scripts/board.gd` | Draws the galaxy, count badges and highlights; animates critters flying along lanes. |
 | `scripts/main.gd` | Setup screen, HUD, dance-off / befriend pop-up, auto-rolling dice panel, cities, turn screen with "while you were away" news, Learn to Play coach, game over. |
 | `tools/make_art.py` | Writes every SVG in `assets/art/`. |
+| `scripts/sound.gd` | Music (layered "Deep space" drone, wind and bells that breathe with the pulse) and sound effects; Settings toggles. |
+| `tools/make_audio.py` | Renders every sound and music piece to `assets/audio/*.ogg` (numpy + scipy + ffmpeg): `python3 tools/make_audio.py` |
+| `lab/mood-lab.html` | The mood lab: palettes, background motion, pulse, music moods, all sound effects and planet layout sliders, to try before building into the game. Open the file in a browser. |
 | `tools/sim.gd` | Headless AI-vs-AI balance sim: `godot --headless --path . -s tools/sim.gd` (`-- quick`, `-- one <i>`, `-- table`, `-- bonus`, `-- gtune`, `-- conq`, `-- coop`, `-- cities`, `-- maps`, `set <knob> <value>`) |
 | `tools/smoke.gd`, `tools/click_test.gd` | Headless tests that drive the real UI and input pipeline (incl. an on-screen layout check). |
 

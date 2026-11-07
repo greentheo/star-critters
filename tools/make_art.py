@@ -5,7 +5,7 @@ import os
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "art")
 os.makedirs(OUT, exist_ok=True)
-INK = "#2a2350"
+INK = "#13262e"
 
 
 def svg(w, h, body):
@@ -38,8 +38,8 @@ def smile(x1, x2, y, depth=18):
 save("critter_blorb", svg(256, 256,
     f'<line x1="128" y1="56" x2="128" y2="22" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>'
     f'<circle cx="128" cy="20" r="12" fill="#ffd94a" stroke="{INK}" stroke-width="6"/>'
-    f'<path d="M44 206 C24 120 66 52 128 52 C190 52 232 120 212 206 C204 230 52 230 44 206 Z" fill="#5ad16a" stroke="{INK}" stroke-width="8"/>'
-    f'<ellipse cx="92" cy="92" rx="24" ry="12" fill="#b4f5b9" opacity="0.8" transform="rotate(-25 92 92)"/>'
+    f'<path d="M44 206 C24 120 66 52 128 52 C190 52 232 120 212 206 C204 230 52 230 44 206 Z" fill="#ff6fae" stroke="{INK}" stroke-width="8"/>'
+    f'<ellipse cx="92" cy="92" rx="24" ry="12" fill="#ffc2dc" opacity="0.8" transform="rotate(-25 92 92)"/>'
     + eye(128, 124, 38) + cheeks(176, 78, 178) + smile(102, 154, 180)))
 
 save("critter_zibbit", svg(256, 256,
@@ -47,16 +47,16 @@ save("critter_zibbit", svg(256, 256,
     f'<path d="M156 92 C170 60 186 40 198 22" fill="none" stroke="{INK}" stroke-width="8" stroke-linecap="round"/>'
     f'<circle cx="56" cy="22" r="14" fill="#ffe26b" stroke="{INK}" stroke-width="6"/>'
     f'<circle cx="200" cy="22" r="14" fill="#ffe26b" stroke="{INK}" stroke-width="6"/>'
-    f'<circle cx="128" cy="150" r="84" fill="#b784ff" stroke="{INK}" stroke-width="8"/>'
+    f'<circle cx="128" cy="150" r="84" fill="#b69cff" stroke="{INK}" stroke-width="8"/>'
     f'<ellipse cx="92" cy="104" rx="22" ry="11" fill="#dcc4ff" opacity="0.85" transform="rotate(-30 92 104)"/>'
     + eye(98, 140, 24) + eye(158, 140, 24) + cheeks(186, 76, 180)
     + f'<path d="M110 190 Q119 202 128 190 Q137 202 146 190" fill="none" stroke="{INK}" stroke-width="7" stroke-linecap="round"/>'))
 
 save("critter_moxie", svg(256, 256,
-    f'<path d="M58 110 L64 28 L122 72 Z" fill="#ff9a3c" stroke="{INK}" stroke-width="8" stroke-linejoin="round"/>'
-    f'<path d="M198 110 L192 28 L134 72 Z" fill="#ff9a3c" stroke="{INK}" stroke-width="8" stroke-linejoin="round"/>'
+    f'<path d="M58 110 L64 28 L122 72 Z" fill="#ffb547" stroke="{INK}" stroke-width="8" stroke-linejoin="round"/>'
+    f'<path d="M198 110 L192 28 L134 72 Z" fill="#ffb547" stroke="{INK}" stroke-width="8" stroke-linejoin="round"/>'
     f'<path d="M72 92 L76 52 L104 74 Z" fill="#ffc3d6"/><path d="M184 92 L180 52 L152 74 Z" fill="#ffc3d6"/>'
-    f'<circle cx="128" cy="146" r="86" fill="#ff9a3c" stroke="{INK}" stroke-width="8"/>'
+    f'<circle cx="128" cy="146" r="86" fill="#ffb547" stroke="{INK}" stroke-width="8"/>'
     f'<ellipse cx="128" cy="186" rx="46" ry="32" fill="#ffe1bf"/>'
     + eye(94, 132, 22) + eye(162, 132, 22)
     + f'<path d="M118 168 L138 168 L128 180 Z" fill="#ff6f9a" stroke="{INK}" stroke-width="5" stroke-linejoin="round"/>'
@@ -66,10 +66,10 @@ save("critter_moxie", svg(256, 256,
 
 save("critter_ploot", svg(256, 256,
     ''.join(f'<path d="M{x} 180 C{x-8} 214 {x+18} 228 {x+8} 244" fill="none" stroke="{INK}" stroke-width="22" stroke-linecap="round"/>'
-            f'<path d="M{x} 180 C{x-8} 214 {x+18} 228 {x+8} 244" fill="none" stroke="#4cc3ff" stroke-width="10" stroke-linecap="round"/>'
+            f'<path d="M{x} 180 C{x-8} 214 {x+18} 228 {x+8} 244" fill="none" stroke="#7fd3ff" stroke-width="10" stroke-linecap="round"/>'
             for x in (66, 104, 146, 186))
-    + f'<path d="M36 186 C36 90 76 40 128 40 C180 40 220 90 220 186 Q128 214 36 186 Z" fill="#4cc3ff" stroke="{INK}" stroke-width="8" stroke-linejoin="round"/>'
-    + f'<ellipse cx="88" cy="84" rx="24" ry="12" fill="#bdeeff" opacity="0.85" transform="rotate(-35 88 84)"/>'
+    + f'<path d="M36 186 C36 90 76 40 128 40 C180 40 220 90 220 186 Q128 214 36 186 Z" fill="#7fd3ff" stroke="{INK}" stroke-width="8" stroke-linejoin="round"/>'
+    + f'<ellipse cx="88" cy="84" rx="24" ry="12" fill="#e0f6ff" opacity="0.85" transform="rotate(-35 88 84)"/>'
     + eye(98, 128, 28, (3, 4)) + eye(160, 128, 28, (3, 4)) + cheeks(168, 70, 188) + smile(108, 150, 166, 16)))
 
 # ------------------------------------------------------------------ planets (160)
@@ -90,26 +90,26 @@ def planet(fill, shade, extra, ring=None):
         + front)
 
 
-save("planet_0", planet("#d9ac7e", "#6b4a3a",
+save("planet_0", planet("#c9b07a", "#6b4a3a",
     '<circle cx="60" cy="98" r="13" fill="#b98a60" stroke="#8a6448" stroke-width="3"/>'
     '<circle cx="104" cy="62" r="9" fill="#b98a60" stroke="#8a6448" stroke-width="3"/>'
     '<circle cx="96" cy="112" r="6" fill="#b98a60"/>'))
-save("planet_1", planet("#a6e7ff", "#3a5f8a",
+save("planet_1", planet("#8ccbe0", "#3a5f8a",
     '<path d="M10 66 Q80 52 150 70 L150 82 Q80 66 10 80 Z" fill="#fff" opacity="0.85"/>'
     '<path d="M10 104 Q80 92 150 108 L150 116 Q80 102 10 114 Z" fill="#fff" opacity="0.7"/>'))
-save("planet_2", planet("#7fd47a", "#2f5f3a",
+save("planet_2", planet("#9ad6b9", "#2f5f3a",
     '<path d="M40 70 q14 -16 32 -4 q10 14 -6 22 q-22 6 -26 -18 Z" fill="#4aa6e8"/>'
     '<path d="M92 100 q18 -10 30 4 q2 16 -18 16 q-16 -4 -12 -20 Z" fill="#4aa6e8"/>'
     '<circle cx="104" cy="58" r="6" fill="#3f9e46"/><circle cx="114" cy="66" r="5" fill="#3f9e46"/><circle cx="58" cy="112" r="6" fill="#3f9e46"/>'))
-save("planet_3", planet("#ff9fd4", "#7a3a6a",
+save("planet_3", planet("#e2a3c4", "#7a3a6a",
     '<path d="M10 72 Q80 60 150 74 L150 90 Q80 76 10 88 Z" fill="#ffd3ec"/>'
     '<circle cx="62" cy="108" r="5" fill="#fff"/><circle cx="100" cy="50" r="4" fill="#fff"/>', ring="#ffe27a"))
 
 save("home", svg(160, 160,
     f'<defs><clipPath id="c"><circle cx="80" cy="92" r="56"/></clipPath></defs>'
-    f'<circle cx="80" cy="92" r="56" fill="#e3dcff"/>'
-    f'<g clip-path="url(#c)"><circle cx="108" cy="118" r="60" fill="#5a4a9a" opacity="0.3"/>'
-    f'<rect x="20" y="96" width="120" height="10" fill="#c8bdf5"/></g>'
+    f'<circle cx="80" cy="92" r="56" fill="#d6f0ea"/>'
+    f'<g clip-path="url(#c)"><circle cx="108" cy="118" r="60" fill="#2f5a5a" opacity="0.3"/>'
+    f'<rect x="20" y="96" width="120" height="10" fill="#a8d8cc"/></g>'
     f'<circle cx="80" cy="92" r="56" fill="none" stroke="{INK}" stroke-width="7"/>'
     f'<path d="M40 66 A44 44 0 0 1 120 66 Z" fill="#bff3ff" stroke="{INK}" stroke-width="6" opacity="0.95"/>'
     f'<path d="M56 56 A26 26 0 0 1 76 44" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>'
@@ -147,14 +147,14 @@ save("lantern", svg(160, 160,
     + f'<path d="M80 42 l10 22 l24 2 l-18 16 l6 24 l-22 -13 l-22 13 l6 -24 l-18 -16 l24 -2 Z" fill="#fff6c8" stroke="{INK}" stroke-width="5" stroke-linejoin="round"/>'))
 
 save("nest", svg(160, 160,
-    f'<path d="M24 100 C8 70 34 34 62 42 C70 18 112 16 120 44 C150 40 160 80 140 100 C150 128 112 146 96 132 C80 150 40 144 40 124 C24 124 18 110 24 100 Z" fill="#4a3d6e" stroke="{INK}" stroke-width="7"/>'
-    f'<path d="M80 90 m-30 0 a30 30 0 1 1 60 0 a20 20 0 1 1 -40 0 a10 10 0 1 1 20 0" fill="none" stroke="#7c6aa8" stroke-width="7" stroke-linecap="round"/>'
-    f'<path d="M50 62 q10 6 20 0 M92 62 q10 6 20 0" fill="none" stroke="#d8ccff" stroke-width="6" stroke-linecap="round"/>'))
+    f'<path d="M24 100 C8 70 34 34 62 42 C70 18 112 16 120 44 C150 40 160 80 140 100 C150 128 112 146 96 132 C80 150 40 144 40 124 C24 124 18 110 24 100 Z" fill="#3d4a55" stroke="{INK}" stroke-width="7"/>'
+    f'<path d="M80 90 m-30 0 a30 30 0 1 1 60 0 a20 20 0 1 1 -40 0 a10 10 0 1 1 20 0" fill="none" stroke="#6f8592" stroke-width="7" stroke-linecap="round"/>'
+    f'<path d="M50 62 q10 6 20 0 M92 62 q10 6 20 0" fill="none" stroke="#d3e2ea" stroke-width="6" stroke-linecap="round"/>'))
 
 save("gloom", svg(160, 160,
-    f'<path d="M22 96 C6 64 36 30 62 40 C72 16 112 18 118 42 C150 36 160 78 140 98 C152 128 112 146 96 132 C80 150 38 146 40 124 C20 124 14 108 22 96 Z" fill="#3b3060" opacity="0.88"/>'
-    f'<path d="M52 84 q10 6 20 0 M90 84 q10 6 20 0" fill="none" stroke="#c9bdf0" stroke-width="6" stroke-linecap="round"/>'
-    f'<path d="M66 108 q15 -8 30 0" fill="none" stroke="#c9bdf0" stroke-width="5" stroke-linecap="round"/>'))
+    f'<path d="M22 96 C6 64 36 30 62 40 C72 16 112 18 118 42 C150 36 160 78 140 98 C152 128 112 146 96 132 C80 150 38 146 40 124 C20 124 14 108 22 96 Z" fill="#34424c" opacity="0.88"/>'
+    f'<path d="M52 84 q10 6 20 0 M90 84 q10 6 20 0" fill="none" stroke="#c3d6dc" stroke-width="6" stroke-linecap="round"/>'
+    f'<path d="M66 108 q15 -8 30 0" fill="none" stroke="#c3d6dc" stroke-width="5" stroke-linecap="round"/>'))
 
 # ------------------------------------------------------------------ ships (96, white for tinting)
 W = "#ffffff"

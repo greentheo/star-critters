@@ -14,6 +14,19 @@ static var LAST_FAIL := ""
 const MIN_DIST := 165.0
 const MAX_LANE := 330.0
 const MAX_DEG := 4
+# Natural spacing (mood lab picks): the spacing swells and shrinks across the galaxy so planets
+# gather in loose clumps (like a Poisson-disk sky, not a grid), planets vary a little in size,
+# and lanes follow the "relative neighbourhood" rule (fewer, more natural lanes). Every value is
+# shared by a whole symmetric group, so all starts stay equally good.
+static var CLUMP := 0.8          # 0 = even spacing
+static var SIZE_VARIETY := 0.24  # planets are 76%..124% of normal size
+static var LANES := "rng"        # "rng" (fewer) or "greedy" (the v3 lanes)
+const RING := 63.0               # drawn ring radius of a size-1 planet (56 x 1.12)
+static var _gaps: Array = []     # local spacing of every point
+static var _sizes: Array = []    # size of every point
+static var _waves: Array = []
+static var _draw_k := 1.0        # planets are drawn bigger on big galaxies (board.gd k)
+static var _relax := 1.0         # eased off if a galaxy is hard to fit (never fails outright)
 
 const NAMES := [
 	"Pebble", "Marshmallow", "Wobble", "Zoop", "Biscuit", "Noodle", "Glimmer", "Pudding",
@@ -43,18 +56,44 @@ static func _polar(ang: float, r: float) -> Vector2:
 	return Vector2(CX + u.x * SX, CY + u.y)
 
 
+## How roomy the galaxy is around p: -1 (crowded) .. 1 (empty), a few slow overlapping waves.
+static func _field(p: Vector2) -> float:
+	var v := 0.0
+	for w in _waves:
+		v += sin(p.x * w.x + p.y * w.y + w.z)
+	return v / maxf(1.0, _waves.size())
+
+
+static func _new_field(rng: RandomNumberGenerator) -> void:
+	_waves = []
+	for i in 3:
+		_waves.append(Vector3(rng.randf_range(0.003, 0.015) * 0.75, rng.randf_range(0.003, 0.015) * 0.75, rng.randf_range(0, TAU)))
+	_gaps = []
+	_sizes = []
+
+
+static func _size_for(kind: String, rng: RandomNumberGenerator) -> float:
+	if kind == "home":
+		return 1.08
+	return 1.0 + SIZE_VARIETY * rng.randf_range(-1.0, 1.0)
+
+
 static func generate(num_players: int, mode: String, seed_value: int, size := "normal") -> Dictionary:
 	var f: float = SIZES.get(size, 1.0)
 	W = 1600.0 * f
 	H = 900.0 * f
 	CX = W / 2.0
 	CY = H / 2.0
+	_draw_k = sqrt(maxf(1.0, W / 1600.0))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
-	for attempt in 600:
-		var m := _try(num_players, mode, rng, size, f)
-		if not m.is_empty():
-			return m
+	# try the full natural look first; if it won't fit, ease the clumping and spacing a little at a time
+	for relax in [1.0, 0.7, 0.4, 0.0]:
+		_relax = relax
+		for attempt in 120:
+			var m := _try(num_players, mode, rng, size, f)
+			if not m.is_empty():
+				return m
 	push_error("map generation failed")
 	return {}
 
@@ -65,14 +104,15 @@ static func _try(num_players: int, mode: String, rng: RandomNumberGenerator, siz
 	var four := num_players >= 3
 	var group: Array = [0, 1, 2, 3] if four else [0, 3]
 	SX = 1.0
+	_new_field(rng)
 	var pts: Array = []    # Vector2
 	var kinds: Array = []  # String
 	var orbits: Array = [] # which symmetric group each node belongs to (same orbit = same start)
 
 	# fixed axis nodes: centre lantern, two side lanterns, two gloom nests
-	_add_orbit(pts, kinds, orbits, group, Vector2(CX, CY), "lantern")
-	_add_orbit(pts, kinds, orbits, group, Vector2(CX - rng.randf_range(250, 300) * f, CY), "lantern")
-	_add_orbit(pts, kinds, orbits, group, Vector2(CX, rng.randf_range(70, 95)), "nest")
+	_add_orbit(rng, pts, kinds, orbits, group, Vector2(CX, CY), "lantern")
+	_add_orbit(rng, pts, kinds, orbits, group, Vector2(CX - rng.randf_range(250, 300) * f, CY), "lantern")
+	_add_orbit(rng, pts, kinds, orbits, group, Vector2(CX, rng.randf_range(70, 95)), "nest")
 
 	# fundamental region
 	var reg: Rect2
@@ -93,13 +133,13 @@ static func _try(num_players: int, mode: String, rng: RandomNumberGenerator, siz
 			extra += ["planet", "asteroid", "planet", "mystery", "asteroid", "planet", "asteroid"]
 
 	var home_pos := Vector2(rng.randf_range(120, 190) * f, rng.randf_range(110, 170) * f)
-	if not _try_place(pts, kinds, orbits, group, home_pos, "home"):
+	if not _try_place(rng, pts, kinds, orbits, group, home_pos, "home"):
 		return {}
 	for k in extra:
 		var placed := false
 		for tries in 300:
 			var p := Vector2(rng.randf_range(reg.position.x, reg.end.x), rng.randf_range(reg.position.y, reg.end.y))
-			if _try_place(pts, kinds, orbits, group, p, k):
+			if _try_place(rng, pts, kinds, orbits, group, p, k):
 				placed = true
 				break
 		if not placed:
@@ -111,29 +151,30 @@ static func _try(num_players: int, mode: String, rng: RandomNumberGenerator, siz
 ## Three players: every home sits in its own 120 degree slice of a round galaxy.
 static func _try3(mode: String, rng: RandomNumberGenerator, size: String) -> Dictionary:
 	var group: Array = [0, 4, 5]
+	_new_field(rng)
 	var R := CY - 70.0
 	SX = (CX - 80.0) / R
 	var pts: Array = []
 	var kinds: Array = []
 	var orbits: Array = []
 	var top := -PI / 2.0  # home slice points up
-	_add_orbit(pts, kinds, orbits, group, Vector2(CX, CY), "lantern")
-	_add_orbit(pts, kinds, orbits, group, _polar(top + PI / 3.0, R * rng.randf_range(0.42, 0.5)), "lantern")
-	_add_orbit(pts, kinds, orbits, group, _polar(top + PI / 3.0, R * 0.97), "nest")
+	_add_orbit(rng, pts, kinds, orbits, group, Vector2(CX, CY), "lantern")
+	_add_orbit(rng, pts, kinds, orbits, group, _polar(top + PI / 3.0, R * rng.randf_range(0.42, 0.5)), "lantern")
+	_add_orbit(rng, pts, kinds, orbits, group, _polar(top + PI / 3.0, R * 0.97), "nest")
 	var extra: Array = ["planet", "asteroid", "mystery", "planet"]
 	if size != "normal":
 		extra += ["planet", "asteroid", "lantern", "planet"]
 	if size == "huge":
 		extra += ["planet", "asteroid", "mystery", "asteroid"]
 	var home := _polar(top + rng.randf_range(-0.2, 0.2), R * rng.randf_range(0.8, 0.92))
-	if not _try_place(pts, kinds, orbits, group, home, "home"):
+	if not _try_place(rng, pts, kinds, orbits, group, home, "home"):
 		LAST_FAIL = "home"
 		return {}
 	for k in extra:
 		var placed := false
 		for tries in 300:
 			var p := _polar(top + rng.randf_range(-PI / 3.0, PI / 3.0), R * sqrt(rng.randf_range(0.04, 1.0)))
-			if _try_place(pts, kinds, orbits, group, p, k):
+			if _try_place(rng, pts, kinds, orbits, group, p, k):
 				placed = true
 				break
 		if not placed:
@@ -157,7 +198,7 @@ static func _finish(pts: Array, kinds: Array, orbits: Array, group: Array, mode:
 	for i in n:
 		for j in range(i + 1, n):
 			var d: float = pts[i].distance_to(pts[j])
-			if d <= MAX_LANE:
+			if d <= MAX_LANE and (LANES != "rng" or _neighbourly(pts, i, j, d)):
 				cands.append([d, i, j])
 	cands.sort_custom(func(a, b): return a[0] < b[0])
 	var edges := {}
@@ -257,7 +298,7 @@ static func _finish(pts: Array, kinds: Array, orbits: Array, group: Array, mode:
 			kind = "planet"
 		nodes.append({
 			"id": i, "name": names[i % names.size()], "pos": pts[i], "kind": kind,
-			"owner": -1, "orbit": orbits[i], "look": rng.randi_range(0, 3),
+			"owner": -1, "orbit": orbits[i], "look": rng.randi_range(0, 3), "size": _sizes[i],
 		})
 	return {"nodes": nodes, "adj": adj, "homes": homes, "size": Vector2(W, H)}
 
@@ -271,33 +312,50 @@ static func _angle(p: Vector2) -> float:
 	return r
 
 
-static func _add_orbit(pts: Array, kinds: Array, orbits: Array, group: Array, p: Vector2, kind: String) -> void:
+static func _add_orbit(rng: RandomNumberGenerator, pts: Array, kinds: Array, orbits: Array, group: Array, p: Vector2, kind: String) -> void:
 	var o := 0 if orbits.is_empty() else int(orbits.back()) + 1
+	var gap := _gap_at(p)
+	var sz := _size_for(kind, rng)
 	for t in group:
 		var q := _apply(t, p)
 		if _find(pts, q) < 0:
 			pts.append(q)
 			kinds.append(kind)
 			orbits.append(o)
+			_gaps.append(gap)
+			_sizes.append(sz)
 
 
-static func _try_place(pts: Array, kinds: Array, orbits: Array, group: Array, p: Vector2, kind: String) -> bool:
+static func _gap_at(p: Vector2) -> float:
+	return MIN_DIST * (1.0 + CLUMP * _relax * 0.55 * _field(p))
+
+
+## Far enough apart? The local spacing of both, and never so close that the planets touch.
+static func _room(q: Vector2, gq: float, sq: float, e: Vector2, ge: float, se: float) -> bool:
+	return q.distance_to(e) >= maxf((gq + ge) / 2.0, RING * lerpf(1.0, _draw_k, _relax) * (sq + se) + 26.0 * _relax)
+
+
+static func _try_place(rng: RandomNumberGenerator, pts: Array, kinds: Array, orbits: Array, group: Array, p: Vector2, kind: String) -> bool:
+	var gap := _gap_at(p)
+	var sz := _size_for(kind, rng)
 	var imgs: Array = []
 	for t in group:
 		imgs.append(_apply(t, p))
 	for a in imgs.size():
 		for b in range(a + 1, imgs.size()):
-			if imgs[a].distance_to(imgs[b]) < MIN_DIST:
+			if not _room(imgs[a], gap, sz, imgs[b], gap, sz):
 				return false
 	for q in imgs:
-		for e in pts:
-			if q.distance_to(e) < MIN_DIST:
+		for i in pts.size():
+			if not _room(q, gap, sz, pts[i], _gaps[i], _sizes[i]):
 				return false
 	var o := 0 if orbits.is_empty() else int(orbits.back()) + 1
 	for q in imgs:
 		pts.append(q)
 		kinds.append(kind)
 		orbits.append(o)
+		_gaps.append(gap)
+		_sizes.append(sz)
 	return true
 
 
@@ -312,6 +370,16 @@ static func _key(a: int, b: int) -> int:
 	return mini(a, b) * 1000 + maxi(a, b)
 
 
+## Relative neighbourhood rule: a lane i-j only if no planet is closer to both of them.
+static func _neighbourly(pts: Array, i: int, j: int, d: float) -> bool:
+	for k2 in pts.size():
+		if k2 == i or k2 == j:
+			continue
+		if maxf(pts[i].distance_to(pts[k2]), pts[j].distance_to(pts[k2])) < d - 0.5:
+			return false
+	return true
+
+
 static func _near_other_node(pts: Array, a: int, b: int) -> bool:
 	var pa: Vector2 = pts[a]
 	var pb: Vector2 = pts[b]
@@ -319,7 +387,7 @@ static func _near_other_node(pts: Array, a: int, b: int) -> bool:
 		if i == a or i == b:
 			continue
 		var q := Geometry2D.get_closest_point_to_segment(pts[i], pa, pb)
-		if q.distance_to(pts[i]) < 70.0:
+		if q.distance_to(pts[i]) < 70.0 * (_sizes[i] if i < _sizes.size() else 1.0):
 			return true
 	return false
 

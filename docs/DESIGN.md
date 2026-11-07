@@ -13,6 +13,30 @@ bigger galaxies. v3.1 feedback: dice too fast, too few games actually won, citie
 spot, friendships invisible. v3.1: slower dice, 2 hops, ties to the attacker, Star Clock sized
 so most games end with a winner, a city offer, and a pink loop around friends.
 
+## Mood (v3.2)
+After two 12-year-olds got into v3.1, the goal became a calm, almost hypnotic flow: losing track
+of time because the game feels good, not because it pulls at you. Everything was chosen in
+`lab/mood-lab.html` first (open it in a browser):
+- **Aurora palette:** near-black teal sky, green and violet gas clouds, players pink (Blorbs),
+  violet (Zibbits), amber (Moxies) and ice blue (Ploots). Gold is kept for rewards, the Gloom is
+  slate grey, friends are mint. The old green Blorbs vs orange Moxies looked the same to
+  red-green colour-blind players.
+- **Background motion:** twinkling, slowly drifting stars; two big gas clouds that sway; a smaller
+  cloud floats across every 25–45 s; a comet every 25–50 s. No ships (too busy).
+- **The pulse:** one shared breath, 0.25 Hz (every 4 s), ±6%: board brightness, darker edges,
+  planet glow and cloud strength, and the music's tone and volume. Far below the 3 flashes a
+  second that can bother light-sensitive people; Settings can turn it off.
+- **Music "Deep space" in A:** a seamless drone (A and E), slow starry-wind swells every 8–12 s
+  and single low bells in A minor pentatonic every 7–15 s. Layered at random, so it never loops.
+- **Sound effects:** ~45, all in the same key with a long soft reverb. Good news climbs the scale
+  (placing critters, winning rolls in a row), bad news steps gently down, nothing buzzes.
+  No near-miss teases or jackpot fanfares. `tools/make_audio.py` renders them to `assets/audio`.
+- **Planets & layout:** planets 12% bigger with ±24% size variety; spacing swells and shrinks so
+  planets gather in loose clumps (a Poisson-disk sky, not a grid), never closer than a gap you
+  can click; lanes follow the relative-neighbourhood rule (about 2.5 per planet, was 3.3). All of
+  it is shared across each symmetric group, so every start is still equally good.
+- **Settings:** music, sound effects and the gentle pulse can each be switched off (saved).
+
 ## Pillars
 1. **Three steps per turn.** Place (and build), Send, (Cards). That's the whole turn.
 2. **Luck you can feel.** Dice dance-offs, mystery planets, cosmic news, Lucky Cards.
@@ -126,6 +150,9 @@ bit of Gloom out before the Star Clock runs out to win.
   (of 60). The Small 2-player map still leans to seat 1 (about 38/22).
 - The 3-player map is a 3-way spin; a mirrored 4-corner map left one player boxed in.
 - Scoring at the end of your own last turn (v2) favoured early seats, so it's off (`FINAL_SNAPSHOT`).
+- v3.2 natural maps (fewer lanes, clumps) shifted seat balance again: start bonuses are now
+  2p 0/3, 3p 0/2/5, 4p 0/2/3/5, Teams 0/1/1/2. Computer games: 2p ~60/60, 3p ~45/43/32,
+  4p ~31/43/23/23 (of 120). The first seat still edges 3-player games; real players vary more.
 - Co-op Gloom was retuned for two hops: about 83% solo (Simple rules), 78% with 2, 75% with 3,
   82% with 4; games last about 7–11 rounds.
 - `tools/sim.gd -- table <galaxy> <players>` measures when games end (for the clock),

@@ -40,6 +40,11 @@ func _init() -> void:
 				"citywant": AI.CITY_WANT = float(v)
 				"falls": Rules.CITY_FALLS = v == "1"
 				"cdef": Rules.CITY_DEFENDS = v == "1"
+				"tbg":  # team start bonus with the Gloom on, e.g. 0,1,1,2
+					var arr: Array = []
+					for x in v.split(","):
+						arr.append(int(x))
+					Rules.TEAM_BONUS[true] = arr
 	if args.has("quick"):
 		games = 20
 	if args.has("maps"):

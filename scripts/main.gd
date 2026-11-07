@@ -5,12 +5,15 @@ extends Node
 const Rules = preload("res://scripts/rules.gd")
 const AI = preload("res://scripts/ai.gd")
 const Board = preload("res://scripts/board.gd")
+const Sound = preload("res://scripts/sound.gd")
+const PULSE_HZ := 0.25     # one slow breath every 4 s (mood lab pick)
+const PULSE_DEPTH := 0.06
 
-const INK := Color("2a2350")
-const BG := Color("120f29")
-const PANEL := Color("1f1a45")
-const GOLD := Color("ffd94a")
-const SOFT := Color("c9c3f5")
+const INK := Color("13262e")
+const BG := Color("081419")
+const PANEL := Color("0e2129")
+const GOLD := Color("ffe08a")
+const SOFT := Color("a3c9c0")
 const GREEN := Color("2fa85a")
 const GREEN_HI := Color("3cc46c")
 const BOARD_AREA := Rect2(0, 96, 1500, 904)
@@ -42,7 +45,7 @@ class DieFace extends Control:
 		sb.bg_color = col if not dim else col.darkened(0.5)
 		sb.set_corner_radius_all(16)
 		sb.set_border_width_all(5)
-		sb.border_color = Color("2a2350")
+		sb.border_color = Color("13262e")
 		draw_style_box(sb, Rect2(Vector2(3, 3), size - Vector2(6, 6)))
 		var spots := {
 			1: [Vector2(0.5, 0.5)], 2: [Vector2(0.27, 0.27), Vector2(0.73, 0.73)],
@@ -52,7 +55,7 @@ class DieFace extends Control:
 			6: [Vector2(0.27, 0.25), Vector2(0.73, 0.25), Vector2(0.27, 0.5), Vector2(0.73, 0.5), Vector2(0.27, 0.75), Vector2(0.73, 0.75)],
 		}
 		for p in spots.get(value, []):
-			draw_circle(p * size, size.x * 0.085, Color("2a2350"))
+			draw_circle(p * size, size.x * 0.085, Color("13262e"))
 
 	func show_value(v: int, tumble := true) -> void:
 		if not tumble:
@@ -93,6 +96,8 @@ var tip_override := ""
 var gen := 0  # bumps every new game so stale AI timers stop
 var news_seq := 0
 var tut_step := -1
+var sound: Node
+var _pulse_t := 0.0
 
 var mode := "ffa"
 var rules := "simple"
@@ -140,6 +145,8 @@ func _ready() -> void:
 			"icon_pinky", "icon_critter", "icon_city", "planet_0", "planet_2"]:
 		tex[n] = load("res://assets/art/%s.svg" % n)
 	theme = _make_theme()
+	sound = Sound.new()
+	add_child(sound)
 	board = Board.new()
 	add_child(board)
 	_fit_board(Vector2(1600, 900))
@@ -153,6 +160,16 @@ func _ready() -> void:
 	layer.add_child(ui)
 	_show_setup()
 	_setup_test_hook()
+
+
+## The breath: one shared slow pulse for the board's light and the music.
+func _process(delta: float) -> void:
+	_pulse_t += delta
+	var p := 0.5 - 0.5 * cos(TAU * PULSE_HZ * _pulse_t)
+	var depth := PULSE_DEPTH if sound.pulse_on else 0.0
+	board.pulse = p
+	board.pulse_depth = depth
+	sound.set_pulse(p, depth)
 
 
 ## Zoom the board so the whole galaxy fits next to the side panel.
@@ -269,11 +286,11 @@ func _test_fast_forward(rounds: int) -> void:
 func _make_theme() -> Theme:
 	var th := Theme.new()
 	th.default_font_size = 26
-	var normal := _box(Color("3d3480"), 16, 4)
-	var hover := _box(Color("5246a6"), 16, 4)
-	var pressed := _box(Color("2c2560"), 16, 4)
-	var disabled := _box(Color("29244f"), 16, 4)
-	disabled.border_color = Color("3a3566")
+	var normal := _box(Color("1e5560"), 16, 4)
+	var hover := _box(Color("287080"), 16, 4)
+	var pressed := _box(Color("12303a"), 16, 4)
+	var disabled := _box(Color("132a31"), 16, 4)
+	disabled.border_color = Color("25444d")
 	for st in [["normal", normal], ["hover", hover], ["pressed", pressed], ["disabled", disabled],
 			["hover_pressed", pressed]]:
 		th.set_stylebox(st[0], "Button", st[1])
@@ -281,10 +298,10 @@ func _make_theme() -> Theme:
 	th.set_color("font_color", "Button", Color.WHITE)
 	th.set_color("font_hover_color", "Button", Color.WHITE)
 	th.set_color("font_pressed_color", "Button", GOLD)
-	th.set_color("font_disabled_color", "Button", Color("77719f"))
+	th.set_color("font_disabled_color", "Button", Color("6f8f94"))
 	th.set_color("icon_disabled_color", "Button", Color(1, 1, 1, 0.3))
 	th.set_constant("h_separation", "Button", 12)
-	th.set_color("font_color", "Label", Color("ece9ff"))
+	th.set_color("font_color", "Label", Color("e8fff8"))
 	th.set_stylebox("panel", "PanelContainer", _box(PANEL, 20, 4))
 	th.set_stylebox("panel", "Panel", _box(PANEL, 0, 0))
 	th.set_color("font_outline_color", "Label", BG)
@@ -304,7 +321,7 @@ func _box(col: Color, radius: int, border: int) -> StyleBoxFlat:
 	return b
 
 
-func _label(text: String, size := 26, col := Color("ece9ff"), outline := 0) -> Label:
+func _label(text: String, size := 26, col := Color("e8fff8"), outline := 0) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
@@ -331,7 +348,7 @@ func _icon(name: String, size: int) -> TextureRect:
 	return r
 
 
-func _icon_text(icon: String, text: String, size := 26, col := Color("ece9ff")) -> HBoxContainer:
+func _icon_text(icon: String, text: String, size := 26, col := Color("e8fff8")) -> HBoxContainer:
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 6)
 	h.add_child(_icon(icon, size + 6))
@@ -355,7 +372,7 @@ func _button(text: String, cb: Callable, size := 28, icon := "") -> Button:
 func _green(b: Button) -> Button:
 	b.add_theme_stylebox_override("normal", _box(GREEN, 18, 5))
 	b.add_theme_stylebox_override("hover", _box(GREEN_HI, 18, 5))
-	b.add_theme_stylebox_override("disabled", _box(Color("29244f"), 18, 5))
+	b.add_theme_stylebox_override("disabled", _box(Color("132a31"), 18, 5))
 	return b
 
 
@@ -471,7 +488,7 @@ func _show_setup() -> void:
 		var sp: Dictionary = Rules.SPECIES[i]
 		var card := PanelContainer.new()
 		var cb := _box(PANEL, 20, 6)
-		cb.border_color = sp["color"] if seats[i] != Seat.EMPTY else Color("3a3566")
+		cb.border_color = sp["color"] if seats[i] != Seat.EMPTY else Color("25444d")
 		card.add_theme_stylebox_override("panel", cb)
 		card.custom_minimum_size = Vector2(340, 250)
 		seats_row.add_child(card)
@@ -483,7 +500,7 @@ func _show_setup() -> void:
 		if seats[i] == Seat.EMPTY:
 			pic.modulate = Color(1, 1, 1, 0.25)
 		v.add_child(pic)
-		var nm := _label(sp["name"], 32, sp["color"] if seats[i] != Seat.EMPTY else Color("77719f"))
+		var nm := _label(sp["name"], 32, sp["color"] if seats[i] != Seat.EMPTY else Color("6f8f94"))
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
 		v.add_child(_button(SEAT_TEXT[seats[i]], _cycle_seat.bind(i), 26))
@@ -502,6 +519,9 @@ func _show_setup() -> void:
 	var how := _button("How to play", _show_how_to, 32, "icon_card")
 	how.custom_minimum_size = Vector2(320, 96)
 	row.add_child(how)
+	var gear := _button("Settings", _show_settings, 28)
+	gear.custom_minimum_size = Vector2(200, 96)
+	row.add_child(gear)
 	var go := _green(_button("Blast off!", _start_from_setup, 44, "icon_rocket"))
 	go.custom_minimum_size = Vector2(420, 96)
 	go.disabled = _setup_problem() != ""
@@ -509,7 +529,7 @@ func _show_setup() -> void:
 
 
 func _selected_style(b: Button) -> void:
-	var sel := _box(Color("6a55d8"), 16, 6)
+	var sel := _box(Color("4e62c9"), 16, 6)
 	sel.border_color = GOLD
 	b.add_theme_stylebox_override("normal", sel)
 	b.add_theme_stylebox_override("hover", sel)
@@ -531,6 +551,7 @@ func _option_group(title: String, options: Array, current: String, cb: Callable)
 
 
 func _set_mode(m: String) -> void:
+	sound.play("click")
 	mode = m
 	if mode == "teams":
 		for i in 4:
@@ -540,26 +561,31 @@ func _set_mode(m: String) -> void:
 
 
 func _set_rules(v: String) -> void:
+	sound.play("click")
 	rules = v
 	_show_setup()
 
 
 func _set_gloom(v: String) -> void:
+	sound.play("click")
 	gloom_on = v == "on"
 	_show_setup()
 
 
 func _set_length(v: String) -> void:
+	sound.play("click")
 	length = v
 	_show_setup()
 
 
 func _set_galaxy(v: String) -> void:
+	sound.play("click")
 	galaxy = v
 	_show_setup()
 
 
 func _cycle_seat(i: int) -> void:
+	sound.play("click")
 	seats[i] = (seats[i] + 1) % 4
 	if mode == "teams" and seats[i] == Seat.EMPTY:
 		seats[i] = Seat.PLAYER
@@ -662,6 +688,8 @@ func _begin_turn() -> void:
 		get_tree().create_timer(AI_DELAY * 1.4).timeout.connect(_ai_step.bind(gen))
 	else:
 		board.input_enabled = true
+		var rush_start: bool = Rules.star_rush(s) and s["round"] == s["max_rounds"] - Rules.RUSH_ROUNDS + 1
+		sound.play("rush" if rush_start else "turn")
 		var news := _news()
 		if (_humans() >= 2 or news.size() > 0) and tut_step < 0:
 			_show_turn_splash(news)
@@ -695,6 +723,7 @@ func _after_change(animate := true) -> void:
 			rng_used = true
 	if rng_used:
 		undo_stack.clear()
+	_sound_events(s["events"])
 	board.set_state(s, animate)
 	s["events"].clear()
 	_refresh()
@@ -751,12 +780,132 @@ func _ai_step(g: int) -> void:
 	get_tree().create_timer(delay).timeout.connect(_ai_step.bind(gen))
 
 
+## What the rules just did, as sounds (each sound at most once per change).
+func _sound_events(events: Array) -> void:
+	if events.is_empty():
+		return
+	var rolls := 0
+	var captured := {}
+	for e in events:
+		if e["t"] == "roll":
+			rolls += 1
+		elif e["t"] == "capture":
+			captured[e["node"]] = true
+	var done := {}
+	for e in events:
+		match e["t"]:
+			"place":
+				if e.get("gloom", false):
+					_once(done, "gloomgrow")
+				elif e["count"] > 1:
+					_once(done, "placeall")
+				else:
+					sound.place_note()
+			"move":
+				if not captured.has(e["to"]):
+					_once(done, "hop")
+			"capture":
+				var o: int = e["owner"]
+				var prev: int = e["prev"]
+				if o == Rules.GLOOM:
+					_once(done, "gloomtake")
+				elif prev == Rules.GLOOM:
+					_once(done, "gloomchase")
+				elif prev == Rules.WILD:
+					_once(done, "claim")
+				else:
+					_once(done, "capture")
+				if prev >= 0 and s["players"][prev]["out"]:
+					_once(done, "out", 1.2)
+			"roll":
+				if rolls <= 2:
+					if not e.get("tie", false):
+						sound.roll(e["att_wins"])
+					if not e["captured"] and e["att_left"] <= 0:
+						_once(done, "defend", 0.5)
+				else:
+					_once(done, "dice_0")
+			"city":
+				_once(done, "city")
+			"friends":
+				_once(done, "friends")
+			"mystery":
+				_once(done, "mystery")
+			"card":
+				if e["card"] == "dice":
+					_once(done, "luckydice")
+			"newcard":
+				_once(done, "card", 0.4)
+			"text":
+				var tx: String = e["text"]
+				if tx.ends_with("City"):
+					_once(done, "harvest")
+				elif tx == "City lost!":
+					_once(done, "citylost")
+				elif tx == "Gift!":
+					_once(done, "gift")
+				elif tx == "Force Field!":
+					_once(done, "shield")
+				elif tx.contains("Rocket"):
+					_once(done, "rocket")
+				elif tx.contains("Meteor"):
+					_once(done, "meteor")
+				elif tx.contains("Comet"):
+					_once(done, "comet")
+				elif tx.contains("Glow"):
+					_once(done, "glow")
+				elif tx.contains("Storm"):
+					_once(done, "storm")
+				elif tx.begins_with("Bounce"):
+					_once(done, "bounce")
+
+
+func _once(done: Dictionary, name: String, delay := 0.0) -> void:
+	if not done.has(name):
+		done[name] = true
+		sound.play(name, delay)
+
+
+## Music, sound effects and the gentle pulse can each be switched off.
+func _show_settings() -> void:
+	var v := _overlay(0.8)
+	v.add_child(_center(_label("Settings", 56, GOLD, 12)))
+	var opts := [["music", "Music", sound.music_on], ["sfx", "Sound effects", sound.sfx_on],
+		["pulse", "Gentle pulse (the board slowly breathes)", sound.pulse_on]]
+	for o in opts:
+		var b := _button("%s:  %s" % [o[1], "On" if o[2] else "Off"], _toggle_setting.bind(o[0]), 32)
+		b.custom_minimum_size = Vector2(820, 86)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		if o[2]:
+			_selected_style(b)
+		v.add_child(b)
+	var close := _green(_button("Done", _close_overlay, 36))
+	close.custom_minimum_size = Vector2(300, 90)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(close)
+
+
+func _toggle_setting(which: String) -> void:
+	match which:
+		"music":
+			sound.set_music(not sound.music_on)
+		"sfx":
+			sound.set_sfx(not sound.sfx_on)
+		"pulse":
+			sound.set_pulse_on(not sound.pulse_on)
+	sound.play("click")
+	_show_settings()
+
+
 func _end_turn() -> void:
 	if s["over"]:
 		return
 	dance = {}
 	dance_token += 1
+	var round_before: int = s["round"]
 	Rules.end_turn(s)
+	if s["round"] > round_before and not s["cosmic"].is_empty() and s["cosmic"]["id"] != "calm":
+		sound.play("news", 0.6)
 	board.hint_node = -1
 	board.hint_from = -1
 	_after_change()
@@ -766,6 +915,7 @@ func _end_turn() -> void:
 
 func _end_turn_pressed() -> void:
 	if _is_human_turn() and dance.is_empty():
+		sound.play("done")
 		_end_turn()
 
 
@@ -834,6 +984,7 @@ func _on_node_clicked(n: int) -> void:
 				_offer_city()
 		else:
 			info_node = n
+			sound.play("invalid")
 			tip_override = "First put your new critters on YOUR planets (the glowing ones)."
 			_refresh()
 		return
@@ -864,10 +1015,12 @@ func _on_node_clicked(n: int) -> void:
 	if nd["owner"] == p and Rules.movable(s, n) > 0:
 		selected = n
 		info_node = -1
+		sound.play("select")
 	else:
 		selected = -1
 		info_node = n
 		if nd["owner"] == p:
+			sound.play("invalid")
 			if Rules.tired(nd) > 0 and nd["n"] > 1:
 				tip_override = "The critters on %s already hopped %d times this turn. They rest (zz) until your next turn." % [nd["name"], Rules.MAX_HOPS]
 			else:
@@ -918,6 +1071,7 @@ func _show_dance_choice(from: int, to: int) -> void:
 	var info := Rules.dance_info(s, from, to)
 	var q: int = b["owner"]
 	var v := _overlay(0.55)
+	sound.play("popup")
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 40)
@@ -944,7 +1098,7 @@ func _show_dance_choice(from: int, to: int) -> void:
 	go.tooltip_text = "Roll dice until one side runs out. Win and they move in!"
 	btns.add_child(go)
 	if q >= 0 and s["mode"] == "ffa":
-		var fr := _tinted(_button("Befriend", _choose_friend, 38, "icon_pinky"), Color("9c4f86"))
+		var fr := _tinted(_button("Befriend", _choose_friend, 38, "icon_pinky"), Color("2f8f78"))
 		fr.custom_minimum_size = Vector2(320, 100)
 		fr.disabled = not Rules.can_befriend(s, p, from, to)
 		fr.tooltip_text = "Ask to be friends: no dance-offs between you for %d rounds, and these two planets defend together." % Rules.FRIEND_ROUNDS
@@ -967,10 +1121,11 @@ func _show_gift_choice(from: int, to: int) -> void:
 	var b: Dictionary = s["nodes"][to]
 	var q: int = b["owner"]
 	var v := _overlay(0.55)
+	sound.play("popup")
 	var pic := _icon("icon_pinky", 120)
 	pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(pic)
-	v.add_child(_center(_label("You and the %s are friends!" % Rules.owner_name(s, q), 48, Color("ff8fb5"), 10)))
+	v.add_child(_center(_label("You and the %s are friends!" % Rules.owner_name(s, q), 48, Color("8ff5d2"), 10)))
 	var left := Rules.friend_rounds(s, s["current"], q)
 	v.add_child(_center(_wrap_label("Friends can't dance-off each other (%d more round%s, see the pink loop on the map). If you send critters to %s, they become %s critters: a gift." % [
 		left, "" if left == 1 else "s", b["name"], Rules.owner_name(s, q)], 30, Color.WHITE, 1100)))
@@ -984,7 +1139,7 @@ func _show_gift_choice(from: int, to: int) -> void:
 		Rules.send(s, s["current"], from, to)
 		selected = -1
 		tip_override = "A gift for the %s!" % Rules.owner_name(s, q)
-		_after_change(), 34, "icon_pinky"), Color("9c4f86"))
+		_after_change(), 34, "icon_pinky"), Color("2f8f78"))
 	give.custom_minimum_size = Vector2(320, 96)
 	btns.add_child(give)
 	var no := _green(_button("Never mind", func():
@@ -1020,6 +1175,7 @@ func _offer_city() -> void:
 	var p: int = s["current"]
 	var cost := Rules.city_cost(s, p)
 	var v := _overlay(0.55)
+	sound.play("offer")
 	var pic := _icon("icon_city", 120)
 	pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	v.add_child(pic)
@@ -1115,6 +1271,8 @@ func _start_dance(from: int, to: int, ai: bool) -> bool:
 		"def_name": s["nodes"][to]["name"], "att_name": s["nodes"][from]["name"]}
 	dance_last = {}
 	dance_tally = {"a": 0, "d": 0}
+	sound.reset_streak()
+	sound.play("dance")
 	selected = -1
 	info_node = -1
 	pending_build = false
@@ -1169,6 +1327,7 @@ func _stop_dance() -> void:
 	if dance.is_empty() or dance["ai"]:
 		return
 	dance_token += 1
+	sound.play("runaway")
 	tip_override = "You stopped the dance-off. The critters that are left stay home."
 	dance = {}
 	_refresh()
@@ -1196,6 +1355,7 @@ func _dance_done() -> void:
 
 ## Ask the owner of `to` to be friends. A computer decides right away; a person gets asked.
 func _ask_friend(from: int, to: int, from_ai: bool) -> void:
+	sound.play("ask")
 	var p: int = s["current"]
 	var q: int = s["nodes"][to]["owner"]
 	var other: Dictionary = s["players"][q]
@@ -1205,6 +1365,7 @@ func _ask_friend(from: int, to: int, from_ai: bool) -> void:
 			tip_override = "The computer %s said YES! You're friends for %d rounds." % [other["name"], Rules.FRIEND_ROUNDS]
 		else:
 			Rules.befriend_declined(s, p, q)
+			sound.play("nothanks", 0.5)
 			tip_override = "The computer %s said \"no thanks\". Maybe you're winning too much!" % other["name"]
 		selected = -1
 		_after_change()
@@ -1239,6 +1400,7 @@ func _friend_answer(from: int, to: int, yes: bool, from_ai: bool) -> void:
 		Rules.befriend(s, p, from, to)
 	else:
 		Rules.befriend_declined(s, p, s["nodes"][to]["owner"])
+		sound.play("nothanks")
 	tip_override = ""
 	selected = -1
 	ai_waiting = false
@@ -1350,7 +1512,7 @@ func _build_game_ui() -> void:
 	# top bar
 	var top := Panel.new()
 	top.size = Vector2(1920, 96)
-	var tb := _box(Color("1a1640"), 0, 0)
+	var tb := _box(Color("0b1b22"), 0, 0)
 	tb.border_width_bottom = 4
 	top.add_theme_stylebox_override("panel", tb)
 	game_ui.add_child(top)
@@ -1381,6 +1543,10 @@ func _build_game_ui() -> void:
 	status_box.add_theme_constant_override("separation", 18)
 	status_box.alignment = BoxContainer.ALIGNMENT_END
 	th.add_child(status_box)
+	var gear := _button("Settings", _show_settings, 22)
+	gear.custom_minimum_size = Vector2(120, 64)
+	gear.tooltip_text = "Music, sound effects and the gentle pulse"
+	th.add_child(gear)
 	var help := _button("?", _show_how_to, 32)
 	help.custom_minimum_size = Vector2(64, 64)
 	help.tooltip_text = "How to play"
@@ -1393,7 +1559,7 @@ func _build_game_ui() -> void:
 	var side := PanelContainer.new()
 	side.position = Vector2(1500, 96)
 	side.size = Vector2(420, 984)
-	var sb := _box(Color("1a1640"), 0, 0)
+	var sb := _box(Color("0b1b22"), 0, 0)
 	sb.border_width_left = 4
 	sb.content_margin_left = 18
 	sb.content_margin_right = 18
@@ -1484,11 +1650,11 @@ func _build_game_ui() -> void:
 	var bot := Panel.new()
 	bot.position = Vector2(0, 1000)
 	bot.size = Vector2(1500, 80)
-	var bb := _box(Color("1a1640"), 0, 0)
+	var bb := _box(Color("0b1b22"), 0, 0)
 	bb.border_width_top = 4
 	bot.add_theme_stylebox_override("panel", bb)
 	game_ui.add_child(bot)
-	tip_label = _label("", 27, Color("ece9ff"))
+	tip_label = _label("", 27, Color("e8fff8"))
 	tip_label.position = Vector2(24, 0)
 	tip_label.size = Vector2(1450, 80)
 	tip_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -1497,7 +1663,7 @@ func _build_game_ui() -> void:
 
 	# Learn to Play coach
 	coach = PanelContainer.new()
-	var cs := _box(Color("2b2463"), 22, 5)
+	var cs := _box(Color("123039"), 22, 5)
 	cs.border_color = GOLD
 	cs.content_margin_left = 20
 	cs.content_margin_right = 20
@@ -1584,7 +1750,7 @@ func _build_dance_box(parent: Control) -> void:
 	stop.tooltip_text = "Stop the dance-off. Your critters that are left stay home."
 	dance_box.add_child(stop)
 	dance_refs["stop"] = stop
-	var rules_l := _wrap_label("The dice roll by themselves. Bigger number wins, ties: defender. The loser of each roll loses a critter. Bigger crowd +1, twice as big +2. Homes & nests +1.", 18, Color("a9a3d5"), 380)
+	var rules_l := _wrap_label("The dice roll by themselves. Bigger number wins, ties: defender. The loser of each roll loses a critter. Bigger crowd +1, twice as big +2. Homes & nests +1.", 18, Color("a3c3c6"), 380)
 	dance_box.add_child(rules_l)
 
 
@@ -1602,7 +1768,7 @@ func _refresh() -> void:
 	if s["mode"] == "teams":
 		for team in [0, 1]:
 			var tbox := PanelContainer.new()
-			var tsb := _box(Color("221d4d"), 14, 3)
+			var tsb := _box(Color("0f2229"), 14, 3)
 			tsb.content_margin_top = 4
 			tsb.content_margin_bottom = 4
 			tsb.content_margin_left = 8
@@ -1624,7 +1790,7 @@ func _refresh() -> void:
 	if s["gloom"]:
 		var g := Rules.gloom_count(s)
 		var lim: int = s["gloom_limit"]
-		var gcol := Color("ff9a7a") if g >= lim - 2 else Color("c9bdf0")
+		var gcol := Color("ff9a7a") if g >= lim - 2 else Color("b6d6d0")
 		var gl := _icon_text("gloom", "Gloom %d / %d" % [g, lim], 26, gcol)
 		gl.tooltip_text = "If the Gloom covers %d planets, everybody loses!" % lim
 		status_box.add_child(gl)
@@ -1646,12 +1812,12 @@ func _refresh() -> void:
 		var row: Array = step_rows[i]
 		(row[0] as Control).visible = dance.is_empty()
 		var active := (i == 0 and phase == "place") or (i == 1 and phase == "go") or (i == 2 and phase == "go")
-		var ps := _box(Color("2b2560") if active and human else PANEL, 14, 4 if active and human else 2)
-		ps.border_color = pl["color"] if active and human else Color("3a3566")
+		var ps := _box(Color("133039") if active and human else PANEL, 14, 4 if active and human else 2)
+		ps.border_color = pl["color"] if active and human else Color("25444d")
 		ps.content_margin_top = 6
 		ps.content_margin_bottom = 8
 		row[0].add_theme_stylebox_override("panel", ps)
-		(row[1] as Label).add_theme_color_override("font_color", Color.WHITE if active else Color("8f89bd"))
+		(row[1] as Label).add_theme_color_override("font_color", Color.WHITE if active else Color("86a9ad"))
 		var dl: Label = row[2]
 		match i:
 			0:
@@ -1683,7 +1849,7 @@ func _refresh() -> void:
 		for i in pl["cards"].size():
 			var c: String = pl["cards"][i]
 			var info: Dictionary = Rules.CARDS[c]
-			var b := _tinted(_button(info["name"], _card_pressed.bind(i), 19, info["icon"]), Color("6a55d8"))
+			var b := _tinted(_button(info["name"], _card_pressed.bind(i), 19, info["icon"]), Color("4e62c9"))
 			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			b.custom_minimum_size = Vector2(170, 48)
 			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1730,8 +1896,8 @@ func _refresh() -> void:
 func _chip(q: Dictionary) -> Control:
 	var c := PanelContainer.new()
 	var cur: bool = q["id"] == s["current"]
-	var cs := _box(Color("2b2560") if cur else Color("1f1a45"), 14, 4)
-	cs.border_color = q["color"] if cur else Color("3a3566")
+	var cs := _box(Color("133039") if cur else Color("0e2129"), 14, 4)
+	cs.border_color = q["color"] if cur else Color("25444d")
 	cs.content_margin_top = 2
 	cs.content_margin_bottom = 2
 	cs.content_margin_left = 8
@@ -1748,15 +1914,15 @@ func _chip(q: Dictionary) -> Control:
 	v.add_theme_constant_override("separation", -6)
 	h.add_child(v)
 	v.add_child(_icon_text("planet_0", str(Rules.planets(s, q["id"])), 22, GOLD))
-	var cr := _icon_text("icon_critter", str(Rules.critters(s, q["id"])), 22, Color("d8d4ee"))
+	var cr := _icon_text("icon_critter", str(Rules.critters(s, q["id"])), 22, Color("d4e6e2"))
 	v.add_child(cr)
 	if Rules.full_rules(s) and q["cards"].size() > 0:
-		h.add_child(_icon_text("icon_card", str(q["cards"].size()), 20, Color("c9b8ff")))
+		h.add_child(_icon_text("icon_card", str(q["cards"].size()), 20, Color("bfe0ff")))
 	# friendships: a pink heart with the rounds left, on both friends' chips
 	for o in s["players"]:
 		if o["id"] != q["id"] and Rules.truce(s, q["id"], o["id"]):
 			var left := Rules.friend_rounds(s, q["id"], o["id"])
-			var hp := _icon_text("icon_pinky", str(left), 22, Color("ff8fb5"))
+			var hp := _icon_text("icon_pinky", str(left), 22, Color("8ff5d2"))
 			hp.tooltip_text = "Friends with the %s for %d more round%s" % [o["name"], left, "" if left == 1 else "s"]
 			h.add_child(hp)
 	c.tooltip_text = "%s: %d planets, %d critters" % [q["name"], Rules.planets(s, q["id"]), Rules.critters(s, q["id"])]
@@ -1938,7 +2104,7 @@ func _refresh_tip() -> void:
 ## Each step: text, highlighted planets, and either a "Next" button or a condition to wait for.
 func _tut_steps() -> Array:
 	return [
-		{"text": "Hi! I'm Coach Blorb. Let's learn Star Critters! You are the green Blorbs. A green ring means the planet is yours, and the number shows how many critters live there.",
+		{"text": "Hi! I'm Coach Blorb. Let's learn Star Critters! You are the pink Blorbs. A pink ring means the planet is yours, and the number shows how many critters live there.",
 			"hl": [0], "next": "Next"},
 		{"text": "Every turn has 3 steps. Step 1: you get NEW critters. Click your Home planet to put them there, one click each (or press Place all).",
 			"hl": [0], "wait": func(): return s["phase"] == "go"},
@@ -1954,7 +2120,7 @@ func _tut_steps() -> Array:
 			"hl": [1, 3], "wait": func(): return dance.get("to", -1) == 3 or s["nodes"][3]["owner"] == 0},
 		{"text": "DANCE-OFF! The dice roll by themselves. The bigger number wins (a tie goes to the attacker) and the loser loses one critter. Watch the little critters line up on the side that won each roll!",
 			"hl": [3], "wait": func(): return s["nodes"][3]["owner"] == 0 and dance.is_empty()},
-		{"text": "You won Goldie! Golden planets give +1 extra critter every turn. See how the lane between your planets turned green? That's your territory. The ? planet is a Mystery: whoever wins it first finds a surprise!",
+		{"text": "You won Goldie! Golden planets give +1 extra critter every turn. See how the lane between your planets turned pink? That's your territory. The ? planet is a Mystery: whoever wins it first finds a surprise!",
 			"hl": [3, 4], "next": "Next"},
 		{"text": "When you send critters at ANOTHER player's planet (like the Zibbits), you get a choice: Dance-off, or Befriend. Friends can't dance-off each other for 3 rounds, and the two planets defend together. But if someone beats them, they win BOTH!",
 			"hl": [6], "next": "Next"},
@@ -2075,7 +2241,7 @@ func _show_turn_splash(news: Array) -> void:
 		box.add_child(nv)
 		nv.add_child(_label("While you were away:", 26, GOLD))
 		for t in news:
-			nv.add_child(_wrap_label("- " + t, 24, Color("ece9ff"), 1100))
+			nv.add_child(_wrap_label("- " + t, 24, Color("e8fff8"), 1100))
 	var b := _green(_button("Let's go!", func():
 		_close_overlay()
 		_offer_city(), 44))
@@ -2099,10 +2265,11 @@ func _show_game_over() -> void:
 	for w in s["winners"]:
 		show.append(s["players"][w])
 		names.append(s["players"][w]["name"])
+	sound.play("loseall" if res == "gloom" or (s["mode"] == "coop" and res != "win") else "win")
 	if res == "gloom":
 		title = "The Gloom got too big!"
 		sub = "Everybody loses this time. Next time, team up against it sooner!"
-		col = Color("c9bdf0")
+		col = Color("b6d6d0")
 		show = s["players"]
 	elif s["mode"] == "coop":
 		show = s["players"]
@@ -2112,7 +2279,7 @@ func _show_game_over() -> void:
 		else:
 			title = "The Star Clock ran out..."
 			sub = "The Gloom is still hiding out there. Try again!"
-			col = Color("c9bdf0")
+			col = Color("b6d6d0")
 	else:
 		var who := " & ".join(names)
 		if show.size() == 0:
@@ -2153,7 +2320,7 @@ func _show_game_over() -> void:
 		row.add_child(_icon_text("planet_0", "%d planets" % _final_planets(q), 30, GOLD))
 		board_box.add_child(row)
 	if s["gloom"]:
-		board_box.add_child(_center(_label("Gloom: %d planets" % Rules.gloom_count(s), 26, Color("c9bdf0"))))
+		board_box.add_child(_center(_label("Gloom: %d planets" % Rules.gloom_count(s), 26, Color("b6d6d0"))))
 	var row2 := HBoxContainer.new()
 	row2.alignment = BoxContainer.ALIGNMENT_CENTER
 	row2.add_theme_constant_override("separation", 30)

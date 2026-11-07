@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Star Critters Mood Lab</title>
+<style>
+  :root {
+    --bg: #0e0b22; --panel: #1f1a45; --text: #ece9ff; --soft: #c9c3f5; --gold: #ffd94a;
+    --line: rgba(255,255,255,0.10); --chip: rgba(255,255,255,0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif; }
+  body { transition: background 0.6s; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; flex-wrap: wrap; }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: 0.3px; }
+  header p { margin: 0; color: var(--soft); font-size: 14px; flex: 1 1 300px; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; padding: 0 20px 20px; }
+  @media (max-width: 1100px) { .wrap { grid-template-columns: 1fr; } }
+  .stage { position: relative; border-radius: 18px; overflow: hidden; border: 1px solid var(--line);
+    background: #000; aspect-ratio: 12 / 7; perspective: 1400px; }
+  .stage canvas { width: 100%; height: 100%; display: block; transform-origin: 50% 60%;
+    transition: transform 0.8s ease; }
+  .stage.tilt canvas { transform: rotateX(24deg) scale(0.96) translateY(-10px); }
+  .meter { position: absolute; right: 14px; bottom: 12px; display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: rgba(255,255,255,0.65); background: rgba(0,0,0,0.35); padding: 6px 10px;
+    border-radius: 99px; pointer-events: none; }
+  .meter i { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--gold); }
+  aside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+    transition: background 0.6s; }
+  .card h2 { font-size: 15px; margin: 0 0 8px; color: var(--gold); letter-spacing: 0.3px; }
+  .card p.note { margin: 6px 0 0; font-size: 12.5px; color: var(--soft); line-height: 1.4; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; font-size: 13.5px; }
+  .row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .row .grow { flex: 1; min-width: 120px; }
+  input[type=range] { width: 100%; accent-color: var(--gold); }
+  select, button { font: inherit; color: var(--text); background: var(--chip); border: 1px solid var(--line);
+    border-radius: 10px; padding: 6px 10px; cursor: pointer; }
+  button:hover { background: rgba(255,255,255,0.12); }
+  button.big { background: var(--gold); color: #1b1640; font-weight: 700; border: none; padding: 9px 14px; }
+  button.on { outline: 2px solid var(--gold); }
+  .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+  .seg button { padding: 5px 9px; font-size: 13px; }
+  .pal-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pal-pick button { text-align: left; padding: 7px 8px; font-size: 13px; }
+  .pal-pick .sw { display: flex; gap: 2px; margin-top: 4px; }
+  .pal-pick .sw span { width: 14px; height: 10px; border-radius: 3px; }
+  .sfx { display: flex; flex-direction: column; gap: 10px; max-height: 520px; overflow: auto; padding-right: 4px; }
+  .sfx h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--soft); margin: 4px 0 2px; }
+  .sfx .grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  .sfx .grid button { font-size: 12.5px; padding: 5px 8px; }
+  .val { font-variant-numeric: tabular-nums; color: var(--soft); font-size: 12.5px; min-width: 64px; text-align: right; }
+  section.palettes { padding: 4px 20px 40px; }
+  section.palettes h2 { font-size: 18px; margin: 10px 0 4px; }
+  section.palettes > p { color: var(--soft); margin: 0 0 12px; font-size: 14px; max-width: 900px; line-height: 1.5; }
+  .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .pcard { border-radius: 16px; padding: 14px; border: 1px solid var(--line); cursor: pointer; }
+  .pcard.sel { outline: 3px solid var(--gold); }
+  .pcard h3 { margin: 0; font-size: 17px; }
+  .pcard .mood { font-size: 13px; opacity: 0.85; margin: 3px 0 10px; line-height: 1.35; }
+  .tokens { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .tok { border-radius: 8px; height: 38px; display: flex; align-items: flex-end; padding: 3px 5px; font-size: 10.5px;
+    color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.12); }
+  .players { display: flex; gap: 6px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .pl { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; opacity: 0.9; }
+  .pl b { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: #1b1640; }
+  .cvd { display: flex; gap: 10px; margin-top: 8px; font-size: 11px; opacity: 0.85; flex-wrap: wrap; }
+  .cvd div { display: flex; align-items: center; gap: 3px; }
+  .cvd span { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
+  .warn { font-size: 11.5px; margin-top: 6px; opacity: 0.85; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <!-- colour-blindness simulation (Machado et al. 2009, full severity) -->
+  <filter id="protan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/></filter>
+  <filter id="deutan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/></filter>
+  <filter id="tritan" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/></filter>
+</svg>
+
+<header>
+  <h1>Star Critters · Mood Lab</h1>
+  <p>Try the look, motion, pulse and sound here before anything goes into the game. It opens with the picks now in the game (Aurora, Breath 0.25 Hz, Deep space in A). Press <b>Start sound</b>, pick a music mood, then click the sound effects on the right.</p>
+  <button class="big" id="soundBtn">▶ Start sound</button>
+</header>
+
+<div class="wrap">
+  <div>
+    <div class="stage" id="stage">
+      <canvas id="cv" width="1200" height="700"></canvas>
+      <div class="meter"><i id="meterDot"></i><span id="meterTxt">pulse</span></div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Background motion</h2>
+      <div class="row">
+        <label><input type="checkbox" id="lStars" checked> Twinkling stars</label>
+        <label><input type="checkbox" id="lNebula" checked> Gas &amp; dust clouds</label>
+        <label><input type="checkbox" id="lShips"> Ships between planets</label>
+        <label><input type="checkbox" id="lComets" checked> Comets</label>
+        <label><input type="checkbox" id="lTilt"> 2.5D tilt preview</label>
+      </div>
+      <div class="row"><span>Time warp (to preview slow things quickly)</span><input class="grow" type="range" id="warp" min="1" max="8" step="1" value="1"><span class="val" id="warpVal">×1</span></div>
+      <p class="note">At ×1 a gas cloud takes about two minutes to drift across, ships make a trip every few seconds and a comet comes by every half minute or so.</p>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h2>Planets &amp; layout</h2>
+      <div class="row"><span>Layout</span><span class="seg" id="layoutMode">
+        <button data-k="hand">Hand-made (like now)</button><button data-k="natural" class="on">Natural (Poisson)</button></span>
+        <span>Lanes</span><span class="seg" id="laneMode"><button data-k="few" class="on">Fewer</button><button data-k="many">More</button></span>
+        <button id="newGalaxy">New galaxy ↻</button>
+      </div>
+      <div class="row"><span style="min-width:120px">Planet spacing</span><input class="grow" type="range" id="spacing" min="90" max="230" step="5" value="150"><span class="val" id="spacingVal"></span></div>
+      <div class="row"><span style="min-width:120px">Clumping</span><input class="grow" type="range" id="clump" min="0" max="1" step="0.05" value="0.5"><span class="val" id="clumpVal"></span></div>
+      <div class="row"><span style="min-width:120px">Planet size</span><input class="grow" type="range" id="psize" min="0.7" max="1.9" step="0.05" value="1.25"><span class="val" id="psizeVal"></span></div>
+      <div class="row"><span style="min-width:120px">Size variety</span><input class="grow" type="range" id="pvar" min="0" max="1" step="0.05" value="0.4"><span class="val" id="pvarVal"></span></div>
+      <div class="row"><span style="min-width:120px">Lane width</span><input class="grow" type="range" id="lwidth" min="0.4" max="2" step="0.05" value="1"><span class="val" id="lwidthVal"></span></div>
+      <p class="note" id="fillNote"></p>
+      <p class="note">Natural layout uses Poisson-disk spacing (no two planets too close, but never grid-even); clumping lets the spacing swell and shrink so planets gather in loose groups with emptier gaps between. Later, longer lanes could cost more to attack across.</p>
+    </div>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>Palette</h2>
+      <div class="pal-pick" id="palPick"></div>
+      <div class="row" style="margin-top:8px"><span>See it as</span>
+        <select id="cvdSel">
+          <option value="none">Normal colour vision</option>
+          <option value="deutan">Deuteranopia (red-green, most common)</option>
+          <option value="protan">Protanopia (red-green)</option>
+          <option value="tritan">Tritanopia (blue-yellow, rare)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pulse</h2>
+      <div class="row seg" id="pulseMode"></div>
+      <div class="row"><span>Rate</span><input class="grow" type="range" id="rate" min="0.04" max="0.9" step="0.01" value="0.25"><span class="val" id="rateVal"></span></div>
+      <div class="row"><span>Depth</span><input class="grow" type="range" id="depth" min="0" max="0.12" step="0.005" value="0.06"><span class="val" id="depthVal"></span></div>
+      <div class="row">
+        <label><input type="checkbox" id="pBright" checked> Brightness</label>
+        <label><input type="checkbox" id="pVig" checked> Edges</label>
+        <label><input type="checkbox" id="pGlow" checked> Planet glow</label>
+        <label><input type="checkbox" id="pNeb" checked> Clouds</label>
+        <label><input type="checkbox" id="pMusic" checked> Music breathes too</label>
+      </div>
+      <p class="note">0.1 Hz is one slow breath every 10 seconds, the pace of calm breathing. Keep the depth low: it should be felt more than seen.</p>
+    </div>
+
+    <div class="card">
+      <h2>Music</h2>
+      <div class="row seg" id="musicMode"></div>
+      <div class="row"><span>Key</span>
+        <select id="keySel">
+          <option value="146.83">D</option><option value="164.81">E</option><option value="174.61">F</option>
+          <option value="196.00">G</option><option value="220.00" selected>A</option>
+        </select>
+        <span>Music</span><input class="grow" type="range" id="musVol" min="0" max="1" step="0.01" value="0.55">
+      </div>
+      <div class="row"><span>Effects</span><input class="grow" type="range" id="sfxVol" min="0" max="1" step="0.01" value="0.53"></div>
+      <p class="note" id="musicNote"></p>
+    </div>
+
+    <div class="card">
+      <h2>Sound effects</h2>
+      <div class="sfx" id="sfx"></div>
+      <p class="note">Every effect uses notes from the music's key, so nothing clashes. Good news goes up the scale, bad news goes gently down; nothing buzzes or blares.</p>
+    </div>
+  </aside>
+</div>
+
+<section class="palettes">
+  <h2>Palettes side by side</h2>
+  <p>Each palette keeps the same jobs: a dark, low-saturation sky so the eyes rest; the four player colours as the only strong colours on the board; gold saved for rewards and "look here"; and the Gloom a soft grey-violet, never alarm red. Click a card to try it on the board above. The small circles show the four players as someone with red-green colour blindness sees them (about 1 in 12 boys).</p>
+  <div class="pgrid" id="pgrid"></div>
+</section>
+
+<script>
+"use strict";
+// ======================================================================= palettes
+const NAMES = ["Blorbs", "Zibbits", "Moxies", "Ploots"];
+const PALETTES = {
+  current: { name: "Current", mood: "What the game uses today: saturated purple space and bright toy colours. Fun, but busy, and green vs orange is hard for red-green colour blindness.",
+    bg: ["#1d1846", "#0e0b22"], neb: ["#6a3fb5", "#3b2c8f", "#2c4f99"], lane: "#4b4486", panel: "#1f1a45", text: "#ece9ff", soft: "#c9c3f5",
+    gold: "#ffd94a", players: ["#5ad16a", "#b784ff", "#ff9a3c", "#4cc3ff"], gloom: "#8e86b5", wild: "#d8d4ee",
+    planets: ["#e98bc0", "#7fc4ef", "#b9875a", "#86d39a"], star: "#ffffff" },
+  tide: { name: "Deep Tide", mood: "Ocean at night. Cool blue-teal sky, calmest of the set. Players: amber, sky, rose and seafoam.",
+    bg: ["#0f2038", "#060d1c"], neb: ["#1b5e74", "#25407f", "#3a6f86"], lane: "#2c4a6b", panel: "#10213a", text: "#e6f1ff", soft: "#9fb8d6",
+    gold: "#ffd27a", players: ["#ffc857", "#5fb8ff", "#ff7eb6", "#3ddbb0"], gloom: "#7f8aa3", wild: "#cfdbe8",
+    planets: ["#d99bb8", "#86bfe0", "#c7a27c", "#8fcfb6"], star: "#dff2ff" },
+  aurora: { name: "Aurora", mood: "Northern lights: green and violet clouds over near-black teal. Magical, a little more lively.",
+    bg: ["#0b1d26", "#050b12"], neb: ["#1f7a63", "#3d2f7a", "#2a6f8f"], lane: "#2a4a55", panel: "#0e2129", text: "#e8fff8", soft: "#a3c9c0",
+    gold: "#ffe08a", players: ["#7fd3ff", "#ffb547", "#ff6fae", "#b69cff"], gloom: "#6f7f8c", wild: "#d4e6e2",
+    planets: ["#e2a3c4", "#8ccbe0", "#c9b07a", "#9ad6b9"], star: "#eafff6" },
+  ember: { name: "Ember Dusk", mood: "Campfire and sunset: warm plum and amber clouds. Cosy; pairs with the fire-flicker pulse.",
+    bg: ["#24131f", "#120910"], neb: ["#6b2448", "#8a4520", "#4a2a6b"], lane: "#4a2e46", panel: "#24131f", text: "#fff1e6", soft: "#d9b8b0",
+    gold: "#ffcf5c", players: ["#4fd1c5", "#ffd166", "#ff7a8a", "#9aa8ff"], gloom: "#7d7088", wild: "#e8d9d0",
+    planets: ["#e0907a", "#c9a0dc", "#d8b36a", "#8cc7b0"], star: "#fff3e0" },
+  moon: { name: "Moonlit Pastel", mood: "Soft pastels on slate blue. The least stimulating; very gentle for younger players and long sessions.",
+    bg: ["#1d2240", "#11152a"], neb: ["#3a4c7d", "#5b4a85", "#2f5d70"], lane: "#3a4166", panel: "#191e36", text: "#eef0ff", soft: "#b4bbdb",
+    gold: "#f6dd8f", players: ["#a3e4c1", "#cbb2ff", "#ffc4a3", "#a5d8ff"], gloom: "#9c98b6", wild: "#dcdcf0",
+    planets: ["#e7b6cf", "#b0d4ef", "#c8b39a", "#b6dcb8"], star: "#f4f4ff" },
+  okabe: { name: "Night Safe", mood: "Built from the Okabe-Ito colour-blind-safe set: sky, orange, green and pink stay apart for everyone.",
+    bg: ["#161c38", "#0a0d1d"], neb: ["#2b3a6e", "#3a2a62", "#1d4b5c"], lane: "#3a4370", panel: "#151a33", text: "#f2f4ff", soft: "#b8bfdc",
+    gold: "#f0e442", players: ["#56b4e9", "#e69f00", "#22b38a", "#e58fc0"], gloom: "#9a9aa8", wild: "#dcdce4",
+    planets: ["#d7a3c1", "#93c2df", "#c4a983", "#9fceb6"], star: "#ffffff" },
+};
+let pal = PALETTES.tide;
+let palKey = "tide";
+
+// ======================================================================= board model
+const W = 1200, H = 700;
+// owner: 0-3 players, -1 wild, -2 gloom
+const HAND_NODES = [
+  { x: 150, y: 140, o: 0, n: 7, k: "home" }, { x: 335, y: 105, o: 0, n: 3 }, { x: 245, y: 290, o: 0, n: 9, city: true },
+  { x: 470, y: 225, o: -1, n: 3, k: "golden" }, { x: 610, y: 105, o: -1, n: 0 }, { x: 765, y: 185, o: 1, n: 4 },
+  { x: 930, y: 110, o: 1, n: 8, k: "home" }, { x: 1060, y: 270, o: 1, n: 6, city: true }, { x: 860, y: 365, o: -2, n: 6, k: "nest" },
+  { x: 615, y: 365, o: -1, n: 1, k: "mystery" }, { x: 420, y: 430, o: 2, n: 5 }, { x: 215, y: 490, o: 2, n: 8, k: "home" },
+  { x: 385, y: 605, o: 2, n: 3 }, { x: 610, y: 560, o: 3, n: 4 }, { x: 815, y: 575, o: 3, n: 5, city: true },
+  { x: 1000, y: 470, o: 3, n: 7, k: "home" }, { x: 1080, y: 630, o: 3, n: 2 },
+];
+const HAND_EDGES = [[0,1],[0,2],[1,3],[1,4],[2,3],[2,10],[3,4],[3,9],[4,5],[5,6],[5,9],[6,7],[7,8],[5,8],[8,9],[8,15],
+  [9,10],[9,13],[10,11],[10,12],[11,12],[12,13],[13,14],[14,15],[15,16],[14,16],[9,14],[7,15]];
+let NODES = [], EDGES = [], FRIENDS = [12, 13]; // a pink loop: two friends' planets
+
+// ---- layout: the hand-made board, or a natural (Poisson-disk) galaxy
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+let layoutSeed = 7;
+function sizeFactors(rng) { NODES.forEach(nd => { nd.vr = rng() * 2 - 1; nd.tint = Math.floor(rng() * 4); nd.ring = rng() < 0.3; }); }
+function buildLayout() {
+  const mode = document.querySelector("#layoutMode .on")?.dataset.k || "hand";
+  const rng = mulberry(layoutSeed * 7919 + 13);
+  if (mode === "hand") {
+    NODES = HAND_NODES.map(n => ({ ...n })); EDGES = HAND_EDGES.map(e => e.slice()); FRIENDS = [12, 13];
+    sizeFactors(rng); ships = []; return;
+  }
+  // variable-density Poisson disk: no two planets closer than the local spacing; clumping lets the
+  // spacing swell and shrink across the galaxy so planets gather in loose groups
+  const gap = +$("spacing").value, clump = +$("clump").value;
+  const waves = [0, 1, 2].map(() => [rng() * 0.012 + 0.003, rng() * 0.012 + 0.003, rng() * 6.28]);
+  const field = (x, y) => waves.reduce((s, [a, b, c]) => s + Math.sin(x * a + y * b + c), 0) / 3; // -1..1
+  const localGap = (x, y) => gap * (1 + clump * 0.55 * field(x, y));
+  const pts = [];
+  const M = 70;
+  for (let tries = 0; tries < 6000 && pts.length < 48; tries++) {
+    const x = M + rng() * (W - 2 * M), y = M + rng() * (H - 2 * M);
+    const r = localGap(x, y);
+    if (pts.every(p => Math.hypot(p.x - x, p.y - y) >= (r + p.r) / 2)) pts.push({ x, y, r });
+  }
+  NODES = pts.map(p => ({ x: p.x, y: p.y, o: -1, n: 0 }));
+  // lanes: the relative neighbourhood graph (few, always connected, never crossing) or the Gabriel graph (more)
+  const many = (document.querySelector("#laneMode .on")?.dataset.k || "few") === "many";
+  EDGES = [];
+  for (let i = 0; i < NODES.length; i++) for (let j = i + 1; j < NODES.length; j++) {
+    const a = NODES[i], b = NODES[j], dab = Math.hypot(a.x - b.x, a.y - b.y);
+    let ok = true;
+    for (let k = 0; k < NODES.length && ok; k++) {
+      if (k === i || k === j) continue;
+      const c = NODES[k], dac = Math.hypot(a.x - c.x, a.y - c.y), dbc = Math.hypot(b.x - c.x, b.y - c.y);
+      if (many) { if (dac * dac + dbc * dbc < dab * dab) ok = false; }
+      else if (Math.max(dac, dbc) < dab) ok = false;
+    }
+    if (ok) EDGES.push([i, j]);
+  }
+  // who owns what: four homes near the corners, their neighbours, a Gloom nest in the middle
+  const adj = NODES.map(() => []); EDGES.forEach(([a, b]) => { adj[a].push(b); adj[b].push(a); });
+  const near = (x, y, skip) => NODES.map((n, i) => [Math.hypot(n.x - x, n.y - y), i]).filter(([, i]) => !skip.includes(i)).sort((p, q) => p[0] - q[0])[0][1];
+  const homes = [];
+  [[0.1, 0.15], [0.9, 0.15], [0.1, 0.85], [0.9, 0.85]].forEach(([fx, fy]) => homes.push(near(fx * W, fy * H, homes)));
+  const dist = homes.map(h => { const d = NODES.map(() => 99); d[h] = 0; const q = [h];
+    while (q.length) { const u = q.shift(); adj[u].forEach(v => { if (d[v] > d[u] + 1) { d[v] = d[u] + 1; q.push(v); } }); } return d; });
+  NODES.forEach((nd, i) => {
+    const ds = dist.map(d => d[i]), best = Math.min(...ds), who = ds.indexOf(best);
+    if (best === 0) { nd.o = who; nd.k = "home"; nd.n = 6 + Math.floor(rng() * 3); }
+    else if (best === 1 || (best === 2 && rng() < 0.4)) { nd.o = who; nd.n = 2 + Math.floor(rng() * 4); }
+    else { nd.n = [0, 0, 1, 2, 3][Math.floor(rng() * 5)]; }
+  });
+  const nest = near(W / 2, H / 2, homes); NODES[nest].o = -2; NODES[nest].k = "nest"; NODES[nest].n = 6;
+  const wild = NODES.map((n, i) => i).filter(i => NODES[i].o === -1);
+  wild.sort(() => rng() - 0.5).slice(0, 3).forEach((i, k) => { NODES[i].k = k < 2 ? "golden" : "mystery"; NODES[i].n = k < 2 ? 3 : 1; });
+  [0, 1, 2, 3].forEach(p => { const own = NODES.map((n, i) => i).filter(i => NODES[i].o === p && NODES[i].k !== "home");
+    if (own.length) NODES[own[Math.floor(rng() * own.length)]].city = true; });
+  const fe = EDGES.find(([a, b]) => NODES[a].o >= 0 && NODES[b].o >= 0 && NODES[a].o !== NODES[b].o);
+  FRIENDS = fe ? fe.slice() : [];
+  sizeFactors(rng);
+  ships = [];
+}
+// planet radius for this node with the current size sliders
+function planetR(nd) {
+  const base = (nd.k === "home" ? 34 : 28) * +$("psize").value;
+  return base * (1 + 0.6 * +$("pvar").value * (nd.vr || 0));
+}
+
+// ======================================================================= canvas
+const cv = document.getElementById("cv");
+const g = cv.getContext("2d");
+function fitCanvas() {
+  const r = cv.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  g.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+}
+window.addEventListener("resize", fitCanvas);
+
+function rnd(a, b) { return a + Math.random() * (b - a); }
+function hexToRgb(h) { const v = parseInt(h.slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; }
+function rgba(h, a) { const [r, gg, b] = hexToRgb(h); return `rgba(${r},${gg},${b},${a})`; }
+function mix(h1, h2, t) { const a = hexToRgb(h1), b = hexToRgb(h2);
+  return "#" + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, "0")).join(""); }
+
+// stars: three depths for a gentle parallax drift
+const STARS = Array.from({ length: 260 }, () => ({ x: rnd(0, W), y: rnd(0, H), r: rnd(0.4, 1.7), d: Math.floor(rnd(0, 3)),
+  ph: rnd(0, 6.28), sp: rnd(0.4, 1.6) }));
+
+// gas & dust clouds, pre-rendered once per palette
+let cloudArt = [];
+function makeCloud(c1, c2, w, h) {
+  const oc = document.createElement("canvas"); oc.width = w; oc.height = h;
+  const x = oc.getContext("2d");
+  x.filter = "blur(26px)";
+  for (let i = 0; i < 26; i++) {
+    const cx = w / 2 + rnd(-w * 0.32, w * 0.32), cy = h / 2 + rnd(-h * 0.26, h * 0.26), r = rnd(40, Math.min(w, h) * 0.38);
+    const col = Math.random() < 0.5 ? c1 : c2;
+    const gr = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+    gr.addColorStop(0, rgba(col, 0.22)); gr.addColorStop(1, rgba(col, 0));
+    x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, r, 0, 6.283); x.fill();
+  }
+  // dust specks
+  x.filter = "none";
+  for (let i = 0; i < 90; i++) { x.fillStyle = rgba(c2, rnd(0.04, 0.14)); x.fillRect(w / 2 + rnd(-w * 0.35, w * 0.35), h / 2 + rnd(-h * 0.25, h * 0.25), 1.5, 1.5); }
+  return oc;
+}
+function buildClouds() {
+  cloudArt = [makeCloud(pal.neb[0], pal.neb[1], 900, 560), makeCloud(pal.neb[2], pal.neb[0], 760, 480),
+    makeCloud(pal.neb[1], pal.neb[2], 520, 300), makeCloud(pal.neb[0], pal.neb[2], 460, 260)];
+}
+const bigClouds = [{ a: 0, x: 260, y: 230, s: 1.1, ph: 0 }, { a: 1, x: 880, y: 470, s: 1.0, ph: 2 }];
+let driftClouds = [{ a: 2, x: 300, y: 520, v: 9, s: 1 }];
+let nextCloud = 6;
+
+// ships
+let ships = [];
+let nextShip = 1.5;
+function spawnShip() {
+  const e = EDGES[Math.floor(Math.random() * EDGES.length)];
+  let [a, b] = Math.random() < 0.5 ? e : [e[1], e[0]];
+  if (NODES[a].o < 0 && NODES[b].o >= 0) [a, b] = [b, a];
+  if (NODES[a].o < 0) return;
+  const len = Math.hypot(NODES[b].x - NODES[a].x, NODES[b].y - NODES[a].y);
+  ships.push({ a, b, t: 0, dur: len / 34, col: pal.players[NODES[a].o], trail: [] });
+}
+
+// comets
+let comets = [];
+let nextComet = 12;
+
+// ======================================================================= pulse
+const PULSE_MODES = { off: "Off", breath: "Breath", tide: "Tide", ember: "Fire flicker" };
+let pulseMode = "breath";
+function pulseValue(t) {
+  const f = +document.getElementById("rate").value;
+  const TAU = Math.PI * 2;
+  switch (pulseMode) {
+    case "off": return 0.5;
+    case "breath": return 0.5 - 0.5 * Math.cos(TAU * f * t);
+    case "tide": { // slower in-breath, longer out-breath
+      const ph = (f * t) % 1;
+      return ph < 0.4 ? 0.5 - 0.5 * Math.cos(Math.PI * ph / 0.4) : 0.5 + 0.5 * Math.cos(Math.PI * (ph - 0.4) / 0.6);
+    }
+    case "ember": { // a few slow waves that never line up, like firelight
+      const v = 0.5 + 0.22 * Math.sin(TAU * f * t) + 0.15 * Math.sin(TAU * f * 1.73 * t + 1.3)
+        + 0.09 * Math.sin(TAU * f * 2.91 * t + 0.7) + 0.05 * Math.sin(TAU * f * 4.37 * t + 2.1);
+      return Math.max(0, Math.min(1, v));
+    }
+  }
+  return 0.5;
+}
+
+// ======================================================================= drawing
+let last = performance.now(), simT = 0, realT = 0;
+const $ = id => document.getElementById(id);
+
+function drawPlanet(nd, p, depth, tilt) {
+  const R = planetR(nd);
+  const sc = Math.sqrt(R / 28); // badges and rings grow a bit slower than the planet
+  const owner = nd.o;
+  const ringCol = owner >= 0 ? pal.players[owner] : owner === -2 ? pal.gloom : null;
+  // drop shadow for the 2.5D preview
+  if (tilt) {
+    g.fillStyle = "rgba(0,0,0,0.35)";
+    g.beginPath(); g.ellipse(nd.x + 8, nd.y + R + 10, R * 0.95, R * 0.32, 0, 0, 6.283); g.fill();
+  }
+  // glow
+  if (ringCol) {
+    const gl = $("pGlow").checked ? depth * 220 * (p - 0.5) : 0;
+    const gr = g.createRadialGradient(nd.x, nd.y, R * 0.8, nd.x, nd.y, R * 2.1 + gl);
+    gr.addColorStop(0, rgba(ringCol, 0.32)); gr.addColorStop(1, rgba(ringCol, 0));
+    g.fillStyle = gr; g.beginPath(); g.arc(nd.x, nd.y, R * 2.1 + gl, 0, 6.283); g.fill();
+  }
+  // body
+  let body = pal.planets[nd.tint];
+  if (nd.k === "golden") body = pal.gold;
+  if (owner === -2) body = pal.gloom;
+  const lx = nd.x - R * 0.35, ly = nd.y - R * 0.4;
+  const gr = g.createRadialGradient(lx, ly, R * 0.1, nd.x, nd.y, R * 1.05);
+  gr.addColorStop(0, mix(body, "#ffffff", 0.45)); gr.addColorStop(0.55, body); gr.addColorStop(1, mix(body, "#000000", tilt ? 0.55 : 0.3));
+  g.fillStyle = gr; g.beginPath(); g.arc(nd.x, nd.y, R, 0, 6.283); g.fill();
+  if (owner === -2) { // fog wisps
+    for (let i = 0; i < 5; i++) { const a = realT * 0.3 + i * 1.26;
+      g.fillStyle = rgba(mix(pal.gloom, "#ffffff", 0.3), 0.25); g.beginPath();
+      g.arc(nd.x + Math.cos(a) * R * 0.55, nd.y + Math.sin(a) * R * 0.45, R * 0.45, 0, 6.283); g.fill(); }
+  }
+  if (nd.k === "golden") { star(nd.x, nd.y, R * 0.55, mix(pal.gold, "#ffffff", 0.6)); }
+  if (nd.k === "mystery") { g.fillStyle = rgba("#ffffff", 0.9); g.font = "bold 28px ui-rounded, system-ui"; g.textAlign = "center"; g.fillText("?", nd.x, nd.y + 10); }
+  if (nd.ring && nd.k !== "golden") { // a planet ring
+    g.strokeStyle = rgba(mix(body, "#ffffff", 0.5), 0.75); g.lineWidth = 4;
+    g.beginPath(); g.ellipse(nd.x, nd.y, R * 1.45, R * 0.42, -0.35, 0.1, Math.PI - 0.1); g.stroke();
+  }
+  // owner ring
+  if (ringCol) { g.strokeStyle = ringCol; g.lineWidth = 6 * sc; g.beginPath(); g.arc(nd.x, nd.y, R + 9 * sc, 0, 6.283); g.stroke(); }
+  // city
+  if (nd.city) {
+    const cx = nd.x - R - 6 * sc, cy = nd.y - R + 4 * sc;
+    const blocks = [[0, 14, 8], [9, 22, 9], [19, 12, 8]].map(b => b.map(v => v * sc));
+    for (const [ox, h, w] of blocks) {
+      g.fillStyle = mix(pal.gold, "#ffffff", 0.25); g.fillRect(cx + ox, cy - h, w, h);
+      g.fillStyle = rgba(pal.bg[1], 0.6); for (let yy = cy - h + 3; yy < cy - 2; yy += 5) g.fillRect(cx + ox + 2, yy, w - 4, 2);
+    }
+  }
+  // badge
+  if (nd.n > 0 || owner >= 0) {
+    const bx = nd.x + R * 0.72, by = nd.y + R * 0.62;
+    g.fillStyle = ringCol || pal.wild; g.beginPath(); g.arc(bx, by, 17 * sc, 0, 6.283); g.fill();
+    g.lineWidth = 3; g.strokeStyle = pal.bg[1]; g.stroke();
+    g.fillStyle = "#16122e"; g.font = `bold ${Math.round(19 * sc)}px ui-rounded, system-ui`; g.textAlign = "center"; g.fillText(nd.n, bx, by + 6.5 * sc);
+  }
+}
+function star(x, y, r, col) {
+  g.fillStyle = col; g.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+    g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  g.closePath(); g.fill();
+}
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const warp = +$("warp").value;
+  realT += dt; simT += dt * warp;
+  const p = pulseValue(realT);
+  const depth = pulseMode === "off" ? 0 : +$("depth").value;
+  const tilt = $("lTilt").checked;
+
+  // sky
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, pal.bg[0]); sky.addColorStop(1, pal.bg[1]);
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+
+  // clouds
+  if ($("lNebula").checked) {
+    const nb = $("pNeb").checked ? 1 + depth * 6 * (p - 0.5) : 1;
+    g.globalAlpha = Math.max(0, Math.min(1, 0.9 * nb));
+    for (const c of bigClouds) {
+      const im = cloudArt[c.a];
+      const ox = Math.sin(simT * 0.013 + c.ph) * 30, oy = Math.cos(simT * 0.011 + c.ph) * 18;
+      g.drawImage(im, c.x - im.width * c.s / 2 + ox, c.y - im.height * c.s / 2 + oy, im.width * c.s, im.height * c.s);
+    }
+    nextCloud -= dt * warp;
+    if (nextCloud <= 0) { driftClouds.push({ a: 2 + Math.floor(Math.random() * 2), x: -350, y: rnd(80, 620), v: rnd(7, 12), s: rnd(0.8, 1.3) }); nextCloud = rnd(25, 45); }
+    for (const c of driftClouds) {
+      c.x += c.v * dt * warp;
+      const im = cloudArt[c.a];
+      g.globalAlpha = Math.max(0, Math.min(1, 0.75 * nb));
+      g.drawImage(im, c.x - im.width * c.s / 2, c.y - im.height * c.s / 2, im.width * c.s, im.height * c.s);
+    }
+    driftClouds = driftClouds.filter(c => c.x < W + 400);
+    g.globalAlpha = 1;
+  }
+
+  // stars
+  if ($("lStars").checked) {
+    for (const s of STARS) {
+      s.x -= (0.6 + s.d * 0.9) * dt * warp; if (s.x < 0) s.x += W;
+      const a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(realT * s.sp + s.ph));
+      g.fillStyle = rgba(pal.star, a); g.beginPath(); g.arc(s.x, s.y, s.r * (1 + s.d * 0.25), 0, 6.283); g.fill();
+    }
+  }
+
+  // comets
+  if ($("lComets").checked) {
+    nextComet -= dt * warp;
+    if (nextComet <= 0) { comets.push({ x: rnd(100, 700), y: -20, vx: rnd(160, 240), vy: rnd(70, 120), t: 0 }); nextComet = rnd(25, 50); }
+    for (const c of comets) {
+      c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt;
+      const tail = g.createLinearGradient(c.x, c.y, c.x - c.vx * 0.9, c.y - c.vy * 0.9);
+      tail.addColorStop(0, rgba(pal.star, 0.75)); tail.addColorStop(1, rgba(pal.star, 0));
+      g.strokeStyle = tail; g.lineWidth = 2.5; g.beginPath(); g.moveTo(c.x, c.y); g.lineTo(c.x - c.vx * 0.9, c.y - c.vy * 0.9); g.stroke();
+      g.fillStyle = rgba(pal.star, 0.95); g.beginPath(); g.arc(c.x, c.y, 2.6, 0, 6.283); g.fill();
+    }
+    comets = comets.filter(c => c.x < W + 300 && c.y < H + 200);
+  }
+
+  // lanes
+  const lw = +$("lwidth").value;
+  for (const [i, j] of EDGES) {
+    const a = NODES[i], b = NODES[j];
+    let col = pal.lane, w = 5 * lw;
+    if (a.o === b.o && (a.o >= 0 || a.o === -2)) { col = mix(a.o === -2 ? pal.gloom : pal.players[a.o], "#000000", 0.15); w = 9 * lw; }
+    g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = w + 5; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+    g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  }
+  // friend loop
+  if (FRIENDS.length === 2) {
+    const a = NODES[FRIENDS[0]], b = NODES[FRIENDS[1]];
+    const ang = Math.atan2(b.y - a.y, b.x - a.x), r = Math.max(planetR(a), planetR(b)) + 38;
+    g.beginPath();
+    g.arc(b.x, b.y, r, ang - Math.PI / 2, ang + Math.PI / 2);
+    g.arc(a.x, a.y, r, ang + Math.PI / 2, ang + Math.PI * 1.5);
+    g.closePath();
+    g.fillStyle = "rgba(255,143,181,0.10)"; g.fill();
+    g.strokeStyle = `rgba(255,143,181,${0.7 + 0.25 * Math.sin(realT * 2)})`; g.lineWidth = 5; g.stroke();
+  }
+
+  // ships
+  if ($("lShips").checked) {
+    nextShip -= dt * warp;
+    if (nextShip <= 0 && ships.length < 5) { spawnShip(); nextShip = rnd(3, 7); }
+    for (const sh of ships) {
+      sh.t += dt * warp / sh.dur;
+      const a = NODES[sh.a], b = NODES[sh.b];
+      const e = sh.t < 0.5 ? 2 * sh.t * sh.t : 1 - Math.pow(-2 * sh.t + 2, 2) / 2; // ease in-out
+      const x = a.x + (b.x - a.x) * e, y = a.y + (b.y - a.y) * e - Math.sin(e * Math.PI) * 18;
+      sh.trail.push([x, y]); if (sh.trail.length > 26) sh.trail.shift();
+      for (let k = 1; k < sh.trail.length; k++) {
+        g.strokeStyle = rgba(sh.col, (k / sh.trail.length) * 0.45); g.lineWidth = 2.5 * k / sh.trail.length + 0.5;
+        g.beginPath(); g.moveTo(...sh.trail[k - 1]); g.lineTo(...sh.trail[k]); g.stroke();
+      }
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      g.save(); g.translate(x, y); g.rotate(ang);
+      g.fillStyle = rgba(sh.col, 0.35); g.beginPath(); g.arc(0, 0, 9, 0, 6.283); g.fill();
+      g.fillStyle = mix(sh.col, "#ffffff", 0.4); g.beginPath(); g.moveTo(8, 0); g.lineTo(-6, -5); g.lineTo(-3, 0); g.lineTo(-6, 5); g.closePath(); g.fill();
+      g.restore();
+    }
+    ships = ships.filter(s => s.t < 1);
+  }
+
+  // planets (back to front for the tilt preview)
+  const order = NODES.slice().sort((a, b) => a.y - b.y);
+  for (const nd of order) drawPlanet(nd, p, depth, tilt);
+
+  // pulse: edges darken and brighten very slightly
+  if ($("pVig").checked) {
+    const v = g.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, W * 0.7);
+    v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${0.42 + depth * 3 * (p - 0.5)})`);
+    g.fillStyle = v; g.fillRect(0, 0, W, H);
+  }
+  const bright = $("pBright").checked ? 1 + depth * (p - 0.5) * 2 : 1;
+  const cvd = $("cvdSel").value;
+  cv.style.filter = `brightness(${bright.toFixed(4)})` + (cvd !== "none" ? ` url(#${cvd})` : "");
+
+  $("meterDot").style.transform = `scale(${0.55 + 0.6 * p})`;
+  $("meterDot").style.opacity = 0.45 + 0.55 * p;
+  audioPulse(p);
+  requestAnimationFrame(frame);
+}
+
+// ======================================================================= audio
+let A = null; // {ctx, master, music, sfx, rev, filt, pulseGain}
+let rootHz = 220;
+const PENT = [0, 2, 4, 7, 9];          // major pentatonic
+const MINP = [0, 3, 5, 7, 10];         // minor pentatonic (Deep mood)
+const hz = semi => rootHz * Math.pow(2, semi / 12);
+const pent = (i, scale = PENT) => { const o = Math.floor(i / 5), d = ((i % 5) + 5) % 5; return scale[d] + 12 * o; };
+
+function impulse(ctx, sec, decay) {
+  const len = Math.floor(ctx.sampleRate * sec), buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); }
+  return buf;
+}
+function initAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0.9;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -20; comp.ratio.value = 3;
+  master.connect(comp).connect(ctx.destination);
+  const rev = ctx.createConvolver(); rev.buffer = impulse(ctx, 5.5, 2.6);
+  const revOut = ctx.createGain(); revOut.gain.value = 0.85; rev.connect(revOut).connect(master);
+  const pulseGain = ctx.createGain(); pulseGain.gain.value = 1;
+  const music = ctx.createGain(); music.gain.value = +$("musVol").value;
+  const filt = ctx.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 900; filt.Q.value = 0.5;
+  filt.connect(pulseGain).connect(music); music.connect(master);
+  const musicSend = ctx.createGain(); musicSend.gain.value = 0.7; music.connect(musicSend).connect(rev);
+  const sfx = ctx.createGain(); sfx.gain.value = +$("sfxVol").value; sfx.connect(master);
+  const sfxSend = ctx.createGain(); sfxSend.gain.value = 0.4; sfx.connect(sfxSend).connect(rev);
+  const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  A = { ctx, master, music, sfx, rev, filt, pulseGain, noiseBuf, pads: [], drones: [] };
+}
+const now = () => A.ctx.currentTime;
+
+// --- voices ---------------------------------------------------------------
+function env(gainNode, t, a, peak, d) {
+  gainNode.gain.setValueAtTime(0.0001, t);
+  gainNode.gain.exponentialRampToValueAtTime(peak, t + a);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
+}
+function bell(f, t = now(), vol = 0.15, dur = 2.6, dest = A.sfx) {
+  [[1, 1], [2.76, 0.35], [5.4, 0.12], [2.0, 0.18]].forEach(([m, a], k) => {
+    const o = A.ctx.createOscillator(), gn = A.ctx.createGain();
+    o.type = "sine"; o.frequency.value = f * m;
+    env(gn, t, 0.006, vol * a, dur / (1 + k * 0.9));
+    o.connect(gn).connect(dest); o.start(t); o.stop(t + dur + 0.1);
+  });
+}
+function kalimba(f, t = now(), vol = 0.16, dest = A.sfx) {
+  [[1, 1, 1.2], [5.4, 0.25, 0.18], [3.0, 0.08, 0.4]].forEach(([m, a, d]) => {
+    const o = A.ctx.createOscillator(), gn = A.ctx.createGain();
+    o.type = "sine"; o.frequency.value = f * m; env(gn, t, 0.004, vol * a, d);
+    o.connect(gn).connect(dest); o.start(t); o.stop(t + d + 0.1);
+  });
+}
+function tone(f, t, vol, a, d, type = "sine", dest = A.sfx, f2 = null) {
+  const o = A.ctx.createOscillator(), gn = A.ctx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + a + d);
+  env(gn, t, a, vol, d); o.connect(gn).connect(dest); o.start(t); o.stop(t + a + d + 0.1);
+}
+function noise(t, dur, type, f0, f1, q, vol, dest = A.sfx, a = 0.02) {
+  const src = A.ctx.createBufferSource(); src.buffer = A.noiseBuf;
+  const bq = A.ctx.createBiquadFilter(); bq.type = type; bq.Q.value = q;
+  bq.frequency.setValueAtTime(f0, t); bq.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const gn = A.ctx.createGain(); env(gn, t, a, vol, dur);
+  src.connect(bq).connect(gn).connect(dest); src.start(t, Math.random()); src.stop(t + dur + a + 0.1);
+}
+function bowl(f, t = now(), vol = 0.14, dur = 6) {
+  [[1, 1], [1.004, 0.8], [2.71, 0.35], [5.15, 0.12]].forEach(([m, a], k) => {
+    const o = A.ctx.createOscillator(), gn = A.ctx.createGain();
+    o.type = "sine"; o.frequency.value = f * m;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol * a, t + 0.04 + k * 0.02);
+    gn.gain.exponentialRampToValueAtTime(0.0001, t + dur / (1 + k * 0.6));
+    o.connect(gn).connect(A.sfx); o.start(t); o.stop(t + dur + 0.1);
+  });
+}
+function chord(semis, t, vol, a, hold, rel, dest = A.sfx, type = "triangle") {
+  semis.forEach(s => [-6, 6].forEach(det => {
+    const o = A.ctx.createOscillator(), gn = A.ctx.createGain(), lp = A.ctx.createBiquadFilter();
+    o.type = type; o.frequency.value = hz(s); o.detune.value = det; lp.type = "lowpass"; lp.frequency.value = 1400;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol, t + a);
+    gn.gain.setValueAtTime(vol, t + a + hold); gn.gain.exponentialRampToValueAtTime(0.0001, t + a + hold + rel);
+    o.connect(lp).connect(gn).connect(dest); o.start(t); o.stop(t + a + hold + rel + 0.1);
+  }));
+}
+function sparkle(t, count = 6, base = 15, vol = 0.05, spread = 0.5) {
+  for (let i = 0; i < count; i++) bell(hz(pent(base + Math.floor(Math.random() * 6))), t + Math.random() * spread, vol, 1.4);
+}
+
+// --- music ------------------------------------------------------------------
+const MOODS = {
+  drift: { name: "Drift", note: "Slow pad chords (I, IV, vi, V) with bells that tend to ring on the pulse peaks. The default calm." },
+  deep: { name: "Deep space", note: "Almost no melody: a low drone, starry wind and rare low bells in a minor scale. Most hypnotic, a bit darker." },
+  lantern: { name: "Lantern", note: "A repeating kalimba pattern over soft pads, like a music box. More rhythm; very good for flow." },
+  none: { name: "Off", note: "Music off: hear the effects on their own." },
+};
+let mood = "deep", musicOn = false, chordIdx = 0, nextChordAt = 0, nextBellAt = 0, lanternStep = 0, nextLantern = 0;
+let lastPulse = 0, pulseRising = false;
+const PROG = [[-12, 0, 7, 14, 16], [-7, 5, 12, 14, 19], [-15, -3, 4, 9, 12], [-5, 7, 9, 14, 19]];
+function stopPads() {
+  if (!A) return;
+  const t = now();
+  [...A.pads, ...A.drones].forEach(v => { v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(0.0001, t, 1.5); v.o.forEach(o => o.stop(t + 6)); });
+  A.pads = []; A.drones = [];
+}
+function padChord(semis, t, len) {
+  const voices = [];
+  semis.forEach(s => {
+    const gn = A.ctx.createGain();
+    const os = [-8, 0, 8].map(det => { const o = A.ctx.createOscillator(); o.type = s < 0 ? "triangle" : "sawtooth";
+      o.frequency.value = hz(s); o.detune.value = det; o.connect(gn); o.start(t); o.stop(t + len + 7); return o; });
+    const v = s < 0 ? 0.05 : 0.022;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 4);
+    gn.gain.setValueAtTime(v, t + len - 1); gn.gain.exponentialRampToValueAtTime(0.0001, t + len + 6);
+    gn.connect(A.filt); voices.push({ g: gn, o: os });
+  });
+  A.pads.push(...voices);
+  setTimeout(() => { A.pads = A.pads.filter(v => !voices.includes(v)); }, (len + 7) * 1000);
+}
+function startDrone(semis, vol) {
+  semis.forEach(s => {
+    const gn = A.ctx.createGain(); gn.gain.setValueAtTime(0.0001, now()); gn.gain.exponentialRampToValueAtTime(vol, now() + 5);
+    const os = [-4, 4].map(det => { const o = A.ctx.createOscillator(); o.type = "sine"; o.frequency.value = hz(s); o.detune.value = det; o.connect(gn); o.start(); return o; });
+    gn.connect(A.filt); A.drones.push({ g: gn, o: os });
+  });
+}
+function setMood(m) {
+  mood = m;
+  document.querySelectorAll("#musicMode button").forEach(b => b.classList.toggle("on", b.dataset.k === m));
+  $("musicNote").textContent = MOODS[m].note;
+  if (!A) return;
+  stopPads();
+  musicOn = m !== "none";
+  nextChordAt = now() + 0.2; nextBellAt = now() + 3; nextLantern = now() + 1; chordIdx = 0;
+  if (m === "deep") { startDrone([-24, -17], 0.06); }
+  if (m === "drift") { startDrone([-24], 0.035); }
+}
+function musicTick() {
+  if (!A || !musicOn) return;
+  const t = now();
+  if (mood === "drift" || mood === "lantern") {
+    if (t >= nextChordAt - 0.1) { const len = mood === "drift" ? 14 : 16;
+      padChord(PROG[chordIdx % PROG.length], Math.max(t, nextChordAt), len); chordIdx++; nextChordAt += len; }
+  }
+  if (mood === "drift" && t >= nextBellAt) { // fill bells; more bells come from pulse peaks
+    const n = Math.random() < 0.35 ? 2 + Math.floor(Math.random() * 2) : 1;
+    let i = 7 + Math.floor(Math.random() * 6);
+    for (let k = 0; k < n; k++) { bell(hz(pent(i)), t + k * 0.45, 0.07, 3.5, A.music); i += Math.random() < 0.6 ? 1 : -1; }
+    nextBellAt = t + rnd(4, 9);
+  }
+  if (mood === "deep") {
+    if (t >= nextBellAt) { bell(hz(pent(Math.floor(rnd(3, 9)), MINP)), t, 0.08, 6, A.music); nextBellAt = t + rnd(7, 15); }
+    if (t >= nextChordAt) { noise(t, 9, "bandpass", rnd(300, 500), rnd(900, 1400), 3, 0.035, A.music, 4); nextChordAt = t + rnd(8, 12); }
+  }
+  if (mood === "lantern" && t >= nextLantern - 0.05) {
+    const PAT = [5, 7, 9, 7, 10, 9, 7, 8]; // pentatonic steps, a gently turning loop
+    const shift = [0, -1, -2, -1][Math.floor(chordIdx - 1 + 4) % 4] || 0;
+    kalimba(hz(pent(PAT[lanternStep % PAT.length] + shift)), Math.max(t, nextLantern), 0.07, A.music);
+    lanternStep++; nextLantern = Math.max(t, nextLantern) + 0.42;
+  }
+}
+setInterval(musicTick, 50);
+
+function audioPulse(p) {
+  if (!A) return;
+  const sync = $("pMusic").checked && pulseMode !== "off";
+  const depth = +$("depth").value;
+  const t = now();
+  A.filt.frequency.setTargetAtTime(sync ? 650 + 900 * p : 1000, t, 0.15);
+  A.pulseGain.gain.setTargetAtTime(sync ? 1 - Math.min(0.5, depth * 5) * (1 - p) : 1, t, 0.15);
+  // a bell sometimes rings right at the top of a breath
+  if (sync && mood === "drift" && musicOn) {
+    if (p > lastPulse) pulseRising = true;
+    else if (pulseRising && p > 0.9) { pulseRising = false; if (Math.random() < 0.7) bell(hz(pent(10 + Math.floor(Math.random() * 3))), t, 0.06, 4, A.music); }
+  }
+  lastPulse = p;
+}
+
+// --- sound effects -------------------------------------------------------------
+let placeIdx = 0, placeTimer = 0, rollStreak = 0;
+const SFX = [
+  ["Buttons & turns", [
+    ["Button click", () => kalimba(hz(pent(14)), now(), 0.07)],
+    ["Pop-up opens", () => { noise(now(), 0.45, "lowpass", 400, 2600, 0.7, 0.05); bell(hz(pent(12)), now() + 0.12, 0.05, 1.5); }],
+    ["Can't do that", () => { tone(hz(-12), now(), 0.22, 0.01, 0.25, "sine", A.sfx, hz(-14)); kalimba(hz(pent(4)), now() + 0.02, 0.05); }],
+    ["Your turn", () => { const t = now(); [5, 7, 10].forEach((i, k) => bell(hz(pent(i)), t + k * 0.22, 0.11, 3)); }],
+    ["New round / space news", () => { const t = now(); sparkle(t, 7, 12, 0.045, 1.0); bell(hz(pent(5)), t, 0.06, 4); }],
+    ["Star Rush begins", () => { const t = now(); for (let k = 0; k < 9; k++) bell(hz(pent(5 + k)), t + k * 0.09, 0.06, 1.6); chord([0, 7, 16], t + 0.8, 0.03, 0.4, 0.6, 2.5); }],
+    ["Done / end turn", () => { const t = now(); kalimba(hz(pent(9)), t, 0.1); kalimba(hz(pent(5)), t + 0.18, 0.1); }],
+    ["Star Clock tick (last rounds)", () => { tone(hz(pent(12)), now(), 0.12, 0.002, 0.07, "triangle"); noise(now(), 0.03, "bandpass", 2500, 2500, 4, 0.05); }],
+  ]],
+  ["Place & build", [
+    ["Place a critter (click again: it climbs)", () => {
+      clearTimeout(placeTimer); placeTimer = setTimeout(() => placeIdx = 0, 1500);
+      kalimba(hz(pent(5 + (placeIdx % 10))), now(), 0.13); placeIdx++; }],
+    ["Place all", () => { const t = now(); for (let k = 0; k < 6; k++) kalimba(hz(pent(5 + k)), t + k * 0.06, 0.09); }],
+    ["City offer appears", () => { const t = now(); sparkle(t, 4, 13, 0.04, 0.4); bell(hz(pent(10)), t + 0.1, 0.06, 2.5); }],
+    ["Build a city", () => { const t = now(); chord([0, 7, 14, 16], t, 0.035, 0.25, 0.5, 2.5); bell(hz(pent(12)), t + 0.3, 0.1, 3); bell(hz(pent(14)), t + 0.55, 0.08, 3); }],
+    ["City makes +2", () => { const t = now(); bell(hz(pent(10)), t, 0.07, 2); bell(hz(pent(12)), t + 0.16, 0.07, 2); }],
+    ["City knocked down", () => { const t = now(); [9, 7, 5].forEach((i, k) => kalimba(hz(pent(i)), t + k * 0.2, 0.09)); noise(t, 0.8, "lowpass", 600, 150, 0.7, 0.05); }],
+  ]],
+  ["Sending critters", [
+    ["Select a planet", () => kalimba(hz(pent(10)), now(), 0.09)],
+    ["Critters hop", () => { const t = now(); noise(t, 0.55, "bandpass", 350, 1600, 1.4, 0.09); kalimba(hz(pent(8)), t + 0.5, 0.07); }],
+    ["Claim an empty planet", () => { const t = now(); tone(hz(pent(7)), t, 0.1, 0.02, 0.5, "sine", A.sfx, hz(pent(10))); bell(hz(pent(12)), t + 0.18, 0.09, 2.5); sparkle(t + 0.2, 3, 14, 0.035, 0.3); }],
+    ["Gift to a friend", () => { const t = now(); sparkle(t, 8, 12, 0.045, 0.6); bell(hz(pent(9)), t + 0.05, 0.06, 2); }],
+  ]],
+  ["Dance-offs", [
+    ["Dance-off begins", () => bowl(hz(-5), now(), 0.12, 6)],
+    ["Dice roll", () => diceRoll(now())],
+    ["Win a roll (climbs)", () => { kalimba(hz(pent(7 + Math.min(rollStreak, 7))), now(), 0.13); rollStreak++; }],
+    ["Lose a roll", () => { rollStreak = 0; kalimba(hz(pent(4)), now(), 0.08); tone(hz(-12), now(), 0.07, 0.01, 0.3); }],
+    ["Planet won!", () => { const t = now(); [5, 7, 9, 10, 12].forEach((i, k) => bell(hz(pent(i)), t + k * 0.1, 0.09, 3)); chord([0, 7, 16], t + 0.4, 0.03, 0.3, 0.6, 3); rollStreak = 0; }],
+    ["Planet held (defended)", () => { const t = now(); bell(hz(pent(0)), t, 0.12, 4); bell(hz(pent(2)), t + 0.25, 0.08, 3.5); }],
+    ["Run away", () => { const t = now(); noise(t, 0.6, "bandpass", 1400, 300, 1.2, 0.07); kalimba(hz(pent(6)), t + 0.1, 0.06); kalimba(hz(pent(4)), t + 0.3, 0.06); }],
+    ["▶ Whole dance-off at game speed", () => wholeDance()],
+  ]],
+  ["Friends", [
+    ["Ask to be friends", () => { const t = now(); bell(hz(pent(7)), t, 0.1, 2); bell(hz(pent(9)), t + 0.3, 0.1, 2.4); }],
+    ["Friends! (yes)", () => { const t = now(); bell(hz(pent(7)), t, 0.09, 3); bell(hz(pent(9)), t, 0.07, 3); bell(hz(pent(12)), t + 0.25, 0.09, 3.5); sparkle(t + 0.3, 4, 14, 0.035, 0.5); }],
+    ["No thanks", () => { const t = now(); kalimba(hz(pent(8)), t, 0.09); kalimba(hz(pent(7)), t + 0.25, 0.08); }],
+    ["Friendship ends", () => bell(hz(pent(2)), now(), 0.09, 5)],
+  ]],
+  ["Cards & surprises", [
+    ["Find a Lucky Card", () => { const t = now(); noise(t, 0.25, "highpass", 2000, 5000, 0.7, 0.04); sparkle(t + 0.1, 5, 13, 0.04, 0.4); }],
+    ["Rocket Boost", () => { const t = now(); noise(t, 1.1, "bandpass", 250, 3200, 1.2, 0.1); tone(hz(pent(5)), t, 0.05, 0.05, 1.0, "sine", A.sfx, hz(pent(15))); }],
+    ["Lucky Dice", () => { diceRoll(now()); diceRoll(now() + 0.05); sparkle(now() + 0.4, 3, 14, 0.04, 0.3); }],
+    ["Force Field", () => { const t = now(); [0, 2.5].forEach(d => { const o = A.ctx.createOscillator(), gn = A.ctx.createGain();
+      o.frequency.value = hz(pent(12)) + d; env(gn, t, 0.3, 0.05, 1.8); o.connect(gn).connect(A.sfx); o.start(t); o.stop(t + 2.3); }); sparkle(t, 3, 15, 0.03, 0.6); }],
+    ["Mystery surprise", () => { const t = now(); [5, 7, 9, 12, 9, 12, 14].forEach((i, k) => kalimba(hz(pent(i)), t + k * 0.09, 0.09)); }],
+  ]],
+  ["Space news", [
+    ["Meteor Shower", () => { const t = now(); for (let k = 0; k < 10; k++) bell(hz(pent(17 - k)), t + k * 0.11, 0.045, 1.6); }],
+    ["Lucky Comet", () => { const t = now(); noise(t, 2.2, "bandpass", 3000, 500, 2, 0.06, A.sfx, 0.4); tone(hz(pent(17)), t, 0.04, 0.3, 1.8, "sine", A.sfx, hz(pent(10))); }],
+    ["Wild Bloom", () => { const t = now(); for (let k = 0; k < 6; k++) tone(hz(pent(8 + k)), t + k * 0.12, 0.05, 0.02, 0.25, "sine", A.sfx, hz(pent(9 + k))); }],
+    ["Golden Glow", () => { const t = now(); chord([7, 14, 19], t, 0.025, 0.6, 0.8, 2.5); bell(hz(pent(12)), t + 0.3, 0.07, 3); }],
+  ]],
+  ["The Gloom", [
+    ["Gloom grows", () => { const t = now(); const o = A.ctx.createOscillator(), lp = A.ctx.createBiquadFilter(), gn = A.ctx.createGain();
+      o.type = "sawtooth"; o.frequency.value = hz(-24); lp.type = "lowpass"; lp.frequency.setValueAtTime(120, t); lp.frequency.linearRampToValueAtTime(380, t + 1.5); lp.frequency.linearRampToValueAtTime(120, t + 3);
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.18, t + 1.5); gn.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+      o.connect(lp).connect(gn).connect(A.sfx); o.start(t); o.stop(t + 3.3); }],
+    ["Gloom swallows a planet", () => { const t = now(); noise(t, 1.6, "lowpass", 260, 90, 0.8, 0.14, A.sfx, 0.3); bell(hz(pent(-3, MINP)), t + 0.2, 0.09, 4); }],
+    ["Gloom chased off", () => { const t = now(); noise(t, 1.2, "highpass", 300, 4000, 0.7, 0.05, A.sfx, 0.2); [5, 7, 10, 12].forEach((i, k) => bell(hz(pent(i)), t + 0.4 + k * 0.12, 0.08, 2.5)); }],
+    ["Gloom Storm", () => { const t = now(); noise(t, 3, "bandpass", 200, 700, 1.5, 0.09, A.sfx, 1); bowl(hz(-17), t, 0.1, 5); }],
+  ]],
+  ["Game end", [
+    ["You win!", () => { const t = now(); bowl(hz(0), t, 0.1, 7); for (let k = 0; k < 11; k++) bell(hz(pent(5 + k)), t + 0.2 + k * 0.11, 0.07, 3);
+      chord([-12, 0, 7, 14, 16], t + 0.2, 0.035, 1.2, 2, 4); }],
+    ["Everyone loses (the Gloom)", () => { const t = now(); chord([-15, -3, 4, 9], t, 0.03, 1.5, 1.5, 4); [9, 7, 5, 4].forEach((i, k) => bell(hz(pent(i)), t + 0.6 + k * 0.5, 0.07, 3.5)); }],
+    ["Lost your last planet", () => { const t = now(); [7, 5, 4].forEach((i, k) => bell(hz(pent(i)), t + k * 0.35, 0.08, 3)); }],
+    ["Bounce back", () => { const t = now(); tone(hz(pent(2)), t, 0.1, 0.02, 0.4, "sine", A.sfx, hz(pent(7))); [7, 9, 12].forEach((i, k) => kalimba(hz(pent(i)), t + 0.3 + k * 0.1, 0.1)); }],
+  ]],
+];
+function diceRoll(t) {
+  let tt = t;
+  for (let k = 0; k < 5; k++) { noise(tt, 0.025, "bandpass", rnd(1800, 3200), rnd(1800, 3200), 6, rnd(0.12, 0.2), A.sfx, 0.002); tt += rnd(0.04, 0.08); }
+  noise(tt, 0.05, "bandpass", 900, 800, 3, 0.18, A.sfx, 0.002);
+}
+function wholeDance() {
+  // attacker 5 vs defender 3, one roll every 1.6 s like the game
+  const t0 = now();
+  bowl(hz(-5), t0, 0.12, 6);
+  let att = 5, def = 3, k = 0, streak = 0;
+  const step = () => {
+    if (att <= 0 || def <= 0) return;
+    const t = now();
+    diceRoll(t);
+    const win = Math.random() < 0.6;
+    setTimeout(() => {
+      const tt = now();
+      if (win) { def--; kalimba(hz(pent(7 + Math.min(streak, 7))), tt, 0.13); streak++; }
+      else { att--; streak = 0; kalimba(hz(pent(4)), tt, 0.08); tone(hz(-12), tt, 0.07, 0.01, 0.3); }
+      if (def <= 0) { setTimeout(() => { const t2 = now(); [5, 7, 9, 10, 12].forEach((i, j) => bell(hz(pent(i)), t2 + j * 0.1, 0.09, 3)); chord([0, 7, 16], t2 + 0.4, 0.03, 0.3, 0.6, 3); }, 400); }
+      else if (att <= 0) { setTimeout(() => { const t2 = now(); bell(hz(pent(0)), t2, 0.12, 4); bell(hz(pent(2)), t2 + 0.25, 0.08, 3.5); }, 400); }
+      else setTimeout(step, 1600 - 350);
+    }, 350);
+    k++;
+  };
+  setTimeout(step, 1200);
+}
+
+// ======================================================================= UI wiring
+function applyPalette(key) {
+  palKey = key; pal = PALETTES[key];
+  const r = document.documentElement.style;
+  r.setProperty("--bg", pal.bg[1]); r.setProperty("--panel", pal.panel); r.setProperty("--text", pal.text);
+  r.setProperty("--soft", pal.soft); r.setProperty("--gold", pal.gold);
+  buildClouds();
+  ships.forEach(s => s.col = pal.players[NODES[s.a].o]);
+  document.querySelectorAll("#palPick button").forEach(b => b.classList.toggle("on", b.dataset.k === key));
+  document.querySelectorAll(".pcard").forEach(c => c.classList.toggle("sel", c.dataset.k === key));
+}
+function lum(h) { return hexToRgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+  .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0); }
+function contrast(a, b) { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+
+function buildUI() {
+  const pick = $("palPick"), grid = $("pgrid");
+  for (const [k, p] of Object.entries(PALETTES)) {
+    const b = document.createElement("button"); b.dataset.k = k;
+    b.innerHTML = `${p.name}<div class="sw">${[p.bg[0], ...p.neb, ...p.players, p.gold].map(c => `<span style="background:${c}"></span>`).join("")}</div>`;
+    b.onclick = () => applyPalette(k); pick.appendChild(b);
+
+    const c = document.createElement("div"); c.className = "pcard"; c.dataset.k = k;
+    c.style.background = `linear-gradient(160deg, ${p.bg[0]}, ${p.bg[1]})`; c.style.color = p.text;
+    const toks = [["Sky", p.bg[0]], ["Deep sky", p.bg[1]], ["Cloud 1", p.neb[0]], ["Cloud 2", p.neb[1]], ["Lanes", p.lane], ["Panel", p.panel],
+      ["Gold", p.gold], ["Gloom", p.gloom]];
+    const minC = Math.min(...p.players.map(pc => contrast(pc, p.bg[1])));
+    c.innerHTML = `<h3>${p.name}</h3><div class="mood">${p.mood}</div>
+      <div class="tokens">${toks.map(([n, col]) => `<div class="tok" style="background:${col}${lum(col) > 0.35 ? ";color:#1b1640;text-shadow:none" : ""}">${n}<br>${col}</div>`).join("")}</div>
+      <div class="players">${p.players.map((pc, i) => `<div class="pl"><b style="background:${pc}">${i + 1}</b>${NAMES[i]}</div>`).join("")}
+        <div class="pl"><b style="background:${p.wild}">3</b>Wild</div></div>
+      <div class="cvd"><div>Red-green:</div><div style="filter:url(#deutan)">${p.players.map(pc => `<span style="background:${pc}"></span>`).join("")}</div>
+        <div>Blue-yellow:</div><div style="filter:url(#tritan)">${p.players.map(pc => `<span style="background:${pc}"></span>`).join("")}</div></div>
+      <div class="warn">Players vs sky contrast: at least ${minC.toFixed(1)} : 1 ${minC >= 4.5 ? "(easy to read on a TV)" : "(a bit low)"}</div>`;
+    c.onclick = () => { applyPalette(k); window.scrollTo({ top: 0, behavior: "smooth" }); };
+    grid.appendChild(c);
+  }
+  const pm = $("pulseMode");
+  for (const [k, n] of Object.entries(PULSE_MODES)) {
+    const b = document.createElement("button"); b.textContent = n; b.dataset.k = k;
+    b.onclick = () => { pulseMode = k; pm.querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.k === k)); };
+    pm.appendChild(b);
+  }
+  pm.querySelector('[data-k="breath"]').classList.add("on");
+  const mm = $("musicMode");
+  for (const [k, m] of Object.entries(MOODS)) {
+    const b = document.createElement("button"); b.textContent = m.name; b.dataset.k = k;
+    b.onclick = () => { if (!A) startSound(); setMood(k); }; mm.appendChild(b);
+  }
+  const sfx = $("sfx");
+  for (const [group, items] of SFX) {
+    const h = document.createElement("h3"); h.textContent = group; sfx.appendChild(h);
+    const gd = document.createElement("div"); gd.className = "grid"; sfx.appendChild(gd);
+    for (const [label, fn] of items) {
+      const b = document.createElement("button"); b.textContent = label;
+      b.onclick = () => { if (!A) startSound(); fn(); };
+      gd.appendChild(b);
+    }
+  }
+  const upd = () => {
+    const f = +$("rate").value;
+    $("rateVal").textContent = `${f.toFixed(2)} Hz`;
+    $("depthVal").textContent = `±${(+$("depth").value * 100).toFixed(1)}%`;
+    $("warpVal").textContent = `×${$("warp").value}`;
+    $("meterTxt").textContent = pulseMode === "off" ? "pulse off" : `one pulse every ${(1 / f).toFixed(1)} s`;
+  };
+  ["rate", "depth", "warp"].forEach(id => $(id).addEventListener("input", upd));
+  pm.addEventListener("click", upd);
+  upd();
+  $("musVol").addEventListener("input", e => A && A.music.gain.setTargetAtTime(+e.target.value, now(), 0.1));
+  $("sfxVol").addEventListener("input", e => A && A.sfx.gain.setTargetAtTime(+e.target.value, now(), 0.1));
+  $("keySel").addEventListener("change", e => { rootHz = +e.target.value; if (A) setMood(mood); });
+  $("lTilt").addEventListener("change", e => $("stage").classList.toggle("tilt", e.target.checked));
+  $("soundBtn").onclick = () => {
+    if (!A) { startSound(); return; }
+    if (A.ctx.state === "running") { A.ctx.suspend(); $("soundBtn").textContent = "▶ Sound on"; }
+    else { A.ctx.resume(); $("soundBtn").textContent = "⏸ Sound off"; }
+  };
+  $("musicNote").textContent = MOODS[mood].note;
+  document.querySelector('#musicMode [data-k="deep"]').classList.add("on");
+
+  // planets & layout
+  const segs = id => $(id).querySelectorAll("button").forEach(b => b.onclick = () => {
+    $(id).querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); buildLayout(); updLayout(); });
+  segs("layoutMode"); segs("laneMode");
+  $("newGalaxy").onclick = () => { layoutSeed++; buildLayout(); updLayout(); };
+  ["spacing", "clump"].forEach(id => $(id).addEventListener("input", () => { buildLayout(); updLayout(); }));
+  ["psize", "pvar", "lwidth"].forEach(id => $(id).addEventListener("input", updLayout));
+}
+function updLayout() {
+  $("spacingVal").textContent = `${$("spacing").value} px`;
+  $("clumpVal").textContent = `${Math.round(+$("clump").value * 100)}%`;
+  $("psizeVal").textContent = `×${(+$("psize").value).toFixed(2)}`;
+  $("pvarVal").textContent = `±${Math.round(+$("pvar").value * 60)}%`;
+  $("lwidthVal").textContent = `×${(+$("lwidth").value).toFixed(2)}`;
+  // how much of the way to its nearest neighbour a planet (with its ring) fills
+  let fill = 0;
+  NODES.forEach((a, i) => {
+    let nn = 1e9; NODES.forEach((b, j) => { if (i !== j) nn = Math.min(nn, Math.hypot(a.x - b.x, a.y - b.y)); });
+    const R = planetR(a); fill += 2 * (R + 9 * Math.sqrt(R / 28)) / nn;
+  });
+  fill /= Math.max(1, NODES.length);
+  $("fillNote").textContent = `${NODES.length} planets, ${EDGES.length} lanes. A planet fills about ${Math.round(fill * 100)}% of the way to its nearest neighbour (the game today: about 59%).`;
+}
+function startSound() {
+  initAudio();
+  $("soundBtn").textContent = "⏸ Sound off";
+  setMood(mood);
+}
+
+buildUI();
+buildLayout();
+updLayout();
+applyPalette("aurora");
+fitCanvas();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

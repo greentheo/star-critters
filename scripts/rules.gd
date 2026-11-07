@@ -28,13 +28,13 @@ const RUSH_ROUNDS := 3   # the last rounds are a Star Rush
 const RUSH_BONUS := 2
 
 const SPECIES := [
-	{"id": "blorb", "name": "Blorbs", "color": Color("5ad16a")},
-	{"id": "zibbit", "name": "Zibbits", "color": Color("b784ff")},
-	{"id": "moxie", "name": "Moxies", "color": Color("ff9a3c")},
-	{"id": "ploot", "name": "Ploots", "color": Color("4cc3ff")},
+	{"id": "blorb", "name": "Blorbs", "color": Color("ff6fae")},
+	{"id": "zibbit", "name": "Zibbits", "color": Color("b69cff")},
+	{"id": "moxie", "name": "Moxies", "color": Color("ffb547")},
+	{"id": "ploot", "name": "Ploots", "color": Color("7fd3ff")},
 ]
-const GLOOM_COLOR := Color("8e86b5")
-const WILD_COLOR := Color("d8d4ee")
+const GLOOM_COLOR := Color("6f7f8c")
+const WILD_COLOR := Color("d4e6e2")
 
 const FRIEND_ROUNDS := 3  # befriending: no dance-offs between you for this many rounds
 
@@ -52,8 +52,8 @@ const CARDS := {
 
 # later seats start with a few extra critters at home to make up for going later
 # seats 0 & 2 vs 1 & 3; the Gloom slows everyone down, so the head start matters less with it on
-static var TEAM_BONUS := {false: [0, 1, 1, 2], true: [0, 1, 1, 1]}
-static var START_BONUS := {1: [0], 2: [0, 3], 3: [0, 1, 3], 4: [0, 0, 0, 1]}
+static var TEAM_BONUS := {false: [0, 1, 1, 2], true: [0, 1, 1, 2]}
+static var START_BONUS := {1: [0], 2: [0, 3], 3: [0, 2, 5], 4: [0, 2, 3, 5]}
 # Gloom strength. base: fog critters per round, div: +1 more every N rounds,
 # attacks: dance-offs per round (1.5 = 1, 2, 1, 2...), limit: share of the galaxy that means everyone loses,
 # nest: fog critters on each nest at the start.
@@ -75,7 +75,7 @@ static var GLOOM_TUNE := {
 	"coop": {
 		1: {"base": 3, "div": 4, "attacks": 2, "limit": 0.40, "nest": 8},
 		2: {"base": 4, "div": 3, "attacks": 2, "limit": 0.34, "nest": 8},
-		3: {"base": 8, "div": 3, "attacks": 3, "limit": 0.34, "nest": 12},
+		3: {"base": 7, "div": 3, "attacks": 3, "limit": 0.34, "nest": 12},
 		4: {"base": 10, "div": 3, "attacks": 3.5, "limit": 0.34, "nest": 12},
 	},
 	"ffa": {
@@ -623,7 +623,7 @@ static func send(s: Dictionary, p: int, from: int, to: int) -> bool:
 			_land(b, _take(a, c))
 			_event(s, {"t": "move", "from": from, "to": to, "count": c, "owner": p})
 			if k == "gift":
-				_event(s, {"t": "text", "node": to, "text": "Gift!", "color": "ff8fb5"})
+				_event(s, {"t": "text", "node": to, "text": "Gift!", "color": "8ff5d2"})
 				_log(s, "%s gave %d critter%s to the %s!" % [owner_name(s, p), c, "" if c == 1 else "s", owner_name(s, b["owner"])], p)
 		"take":
 			_capture(s, p, from, to, WILD, 1)
@@ -1117,7 +1117,7 @@ static func _cosmic(s: Dictionary) -> void:
 			for nd in s["nodes"]:
 				if nd["kind"] == "golden":
 					nd["n"] += 2
-					_event(s, {"t": "text", "node": nd["id"], "text": "+2 Glow!", "color": "ffd94a"})
+					_event(s, {"t": "text", "node": nd["id"], "text": "+2 Glow!", "color": "ffe08a"})
 		"storm":
 			var g := -1
 			for nd in s["nodes"]:
@@ -1125,7 +1125,7 @@ static func _cosmic(s: Dictionary) -> void:
 					g = nd["id"]
 			if g >= 0:
 				s["nodes"][g]["n"] += 3
-				_event(s, {"t": "text", "node": g, "text": "+3 Storm", "color": "b9b0e0"})
+				_event(s, {"t": "text", "node": g, "text": "+3 Storm", "color": "aab8c2"})
 	_save_rng(s, rng)
 	s["cosmic"] = {"id": c[0], "name": c[2], "text": text}
 	if star_rush(s) and s["round"] == s["max_rounds"] - RUSH_ROUNDS + 1:
